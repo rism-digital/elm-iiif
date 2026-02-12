@@ -438,7 +438,7 @@ possibleSuffixes =
 {-| Parse an `Url` into a IIIF image or info.json URI.
 -}
 parseImageUrl : Url -> Maybe ImageUri
-parseImageUrl { protocol, host, port_, path, query, fragment } =
+parseImageUrl { protocol, host, port_, path } =
     let
         protocolStr =
             case protocol of

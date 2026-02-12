@@ -1,4 +1,4 @@
-module IIIF.Decoders exposing (..)
+module IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
 
 {-| Decoder for IIIF Image API info.json.
 

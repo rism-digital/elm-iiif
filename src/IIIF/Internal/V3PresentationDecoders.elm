@@ -1,4 +1,4 @@
-module IIIF.Internal.V3PresentationDecoders exposing (v3CanvasDecoder, v3RangeDecoder, v3ResourceTypeDecoder, v3iiifCollectionDecoder, v3iiifManifestDecoder)
+module IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri, imageUriToInfoUri, parseImageAddress)
 import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder)
@@ -321,24 +321,24 @@ v3ImageIdFromServiceDecoder =
 
 v3ResourceTypeDecoder : Decoder IIIFResource
 v3ResourceTypeDecoder =
-    Decode.field "type" Decode.string
-        |> Decode.andThen v3ResourceFromType
+    field "type" string
+        |> andThen v3ResourceFromType
 
 
 v3ResourceFromType : String -> Decoder IIIFResource
 v3ResourceFromType resourceType =
     case resourceType of
+        "Canvas" ->
+            map (ResourceCanvas << IIIFCanvas IIIFV3) v3CanvasDecoder
+
         "Collection" ->
-            Decode.map (ResourceCollection << IIIFCollection IIIFV3) v3iiifCollectionDecoder
+            map (ResourceCollection << IIIFCollection IIIFV3) v3iiifCollectionDecoder
 
         "Manifest" ->
-            Decode.map (ResourceManifest << IIIFManifest IIIFV3) v3iiifManifestDecoder
-
-        "Canvas" ->
-            Decode.map (ResourceCanvas << IIIFCanvas IIIFV3) v3CanvasDecoder
+            map (ResourceManifest << IIIFManifest IIIFV3) v3iiifManifestDecoder
 
         "Range" ->
-            Decode.map (ResourceRange << IIIFRange IIIFV3) v3RangeDecoder
+            map (ResourceRange << IIIFRange IIIFV3) v3RangeDecoder
 
         _ ->
-            Decode.fail ("Unknown IIIF v3 resource type: " ++ resourceType)
+            fail ("Unknown IIIF v3 resource type: " ++ resourceType)

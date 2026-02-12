@@ -140,7 +140,7 @@ is encoded as a string.
 stringToLanguageMapLabelDecoder : Decoder LanguageMap
 stringToLanguageMapLabelDecoder =
     string
-        |> andThen (\s -> Decode.succeed [ LanguageValues Default [ s ] ])
+        |> Decode.map (\s -> [ LanguageValues Default [ s ] ])
 
 
 {-| Decoder for v2 language map variants.

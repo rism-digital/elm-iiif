@@ -1,4 +1,4 @@
-module IIIF.Internal.V2PresentationDecoders exposing (v2CanvasDecoder, v2RangeDecoder, v2ResourceFromType, v2ResourceTypeDecoder, v2iiifCollectionDecoder, v2iiifManifestDecoder)
+module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 
 import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, requiredAt)
@@ -243,21 +243,21 @@ v2CollectionItemManifestDecoder =
 
 v2ResourceTypeDecoder : Decoder IIIFResource
 v2ResourceTypeDecoder =
-    Decode.field "@type" Decode.string
-        |> Decode.andThen v2ResourceFromType
+    Decode.field "@type" string
+        |> andThen v2ResourceFromType
 
 
 v2ResourceFromType : String -> Decoder IIIFResource
 v2ResourceFromType resourceType =
     case resourceType of
+        "sc:Canvas" ->
+            Decode.map (ResourceCanvas << IIIFCanvas IIIFV2) v2CanvasDecoder
+
         "sc:Collection" ->
             Decode.map (ResourceCollection << IIIFCollection IIIFV2) v2iiifCollectionDecoder
 
         "sc:Manifest" ->
             Decode.map (ResourceManifest << IIIFManifest IIIFV2) v2iiifManifestDecoder
-
-        "sc:Canvas" ->
-            Decode.map (ResourceCanvas << IIIFCanvas IIIFV2) v2CanvasDecoder
 
         "sc:Range" ->
             Decode.map (ResourceRange << IIIFRange IIIFV2) v2RangeDecoder

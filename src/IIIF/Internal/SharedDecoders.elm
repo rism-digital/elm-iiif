@@ -1,4 +1,4 @@
-module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, iiifInfoDecoderWith, imageContextListDecoder, imageContextMixedDecoder, imageContextMixedListDecoder, imageContextStringDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextMixedListDecoder, imageContextStringDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
 
 import IIIF.Image exposing (ImageUri, parseImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
