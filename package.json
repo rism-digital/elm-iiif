@@ -1,0 +1,17 @@
+{
+  "name": "elm-iiif",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:rism-digital/elm-iiif",
+  "bugs": {
+    "url": "https://github.com/rism-digital/elm-iiif/issues"
+  },
+  "author": "Andrew Hankinson <andrew.hankinson@rism.digital>",
+  "license": "MIT",
+  "scripts": {
+    "test": "elm-test-rs"
+  },
+  "devDependencies": {
+    "elm-test-rs": "^3.0.1-0"
+  }
+}
