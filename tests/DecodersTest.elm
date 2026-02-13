@@ -4,6 +4,7 @@ import Expect
 import IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
 import IIIF.Image exposing (createImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..))
+import IIIF.Language exposing (Language(..), extractLabelFromLanguageMap)
 import IIIF.Presentation exposing (IIIFManifest(..), IIIFResource(..))
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode as Decode
@@ -26,6 +27,35 @@ tests =
                 case Decode.decodeString manifestDecoder v2ManifestJson of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True (version == IIIFV2 && manifest.id == "https://example.org/manifest")
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+        , test "manifestDecoder parses v2 metadata with multilingual value object list" <|
+            \_ ->
+                case Decode.decodeString manifestDecoder v2ManifestJsonWithMultilingualMetadata of
+                    Ok (IIIFManifest version manifest) ->
+                        Expect.equal True
+                            (version == IIIFV2
+                                && manifest.id == "https://example.org/manifest"
+                                && List.length manifest.metadata == 1
+                            )
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+        , test "manifestDecoder parses v2 metadata multilingual list for both label and value" <|
+            \_ ->
+                case Decode.decodeString manifestDecoder v2ManifestJsonWithMultilingualLabelAndValueMetadata of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.metadata of
+                            Just metadata ->
+                                Expect.equal True
+                                    (version == IIIFV2
+                                        && extractLabelFromLanguageMap (LanguageCode "de") metadata.label == "Titel"
+                                        && extractLabelFromLanguageMap (LanguageCode "zh") metadata.value == "福音书"
+                                    )
+
+                            Nothing ->
+                                Expect.fail "Expected one metadata entry"
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -136,6 +166,16 @@ v3ManifestJson =
 v2ManifestJson : String
 v2ManifestJson =
     "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"service\":{\"@id\":\"https://example.org/iiif/2/abc\",\"@context\":\"http://iiif.io/api/image/2/context.json\"}}}]}]}]}"
+
+
+v2ManifestJsonWithMultilingualMetadata : String
+v2ManifestJsonWithMultilingualMetadata =
+    "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"metadata\":[{\"label\":[{\"@language\":\"en\",\"@value\":\"Title\"},{\"@language\":\"de\",\"@value\":\"Titel\"},{\"@language\":\"zh\",\"@value\":\"書名\"}],\"value\":\"Evangelistar: Perikopenbuch Heinrichs II. - BSB Clm 4452\"}],\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"service\":{\"@id\":\"https://example.org/iiif/2/abc\",\"@context\":\"http://iiif.io/api/image/2/context.json\"}}}]}]}]}"
+
+
+v2ManifestJsonWithMultilingualLabelAndValueMetadata : String
+v2ManifestJsonWithMultilingualLabelAndValueMetadata =
+    "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"metadata\":[{\"label\":[{\"@language\":\"en\",\"@value\":\"Title\"},{\"@language\":\"de\",\"@value\":\"Titel\"},{\"@language\":\"zh\",\"@value\":\"書名\"}],\"value\":[{\"@language\":\"en\",\"@value\":\"Book of Gospels\"},{\"@language\":\"de\",\"@value\":\"Evangeliar\"},{\"@language\":\"zh\",\"@value\":\"福音书\"}]}],\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"service\":{\"@id\":\"https://example.org/iiif/2/abc\",\"@context\":\"http://iiif.io/api/image/2/context.json\"}}}]}]}]}"
 
 
 v3ResourceJson : String

@@ -51,6 +51,20 @@ tests =
                 in
                 Decode.decodeString v2LanguageMapLabelDecoder json
                     |> Expect.equal (Ok [ LanguageValues (LanguageCode "fr") [ "Title" ] ])
+        , test "v2LanguageMapLabelDecoder parses list of @value/@language objects" <|
+            \_ ->
+                let
+                    json =
+                        "[{\"@value\":\"Title\",\"@language\":\"en\"},{\"@value\":\"Titel\",\"@language\":\"de\"},{\"@value\":\"書名\",\"@language\":\"zh\"}]"
+                in
+                Decode.decodeString v2LanguageMapLabelDecoder json
+                    |> Expect.equal
+                        (Ok
+                            [ LanguageValues (LanguageCode "en") [ "Title" ]
+                            , LanguageValues (LanguageCode "de") [ "Titel" ]
+                            , LanguageValues (LanguageCode "zh") [ "書名" ]
+                            ]
+                        )
         , test "languageMapLabelDecoder reads language map object" <|
             \_ ->
                 let

@@ -149,9 +149,16 @@ v2LanguageMapLabelDecoder : Decoder LanguageMap
 v2LanguageMapLabelDecoder =
     Decode.oneOf
         [ v2LanguageValueObjectDecoder
+        , v2LanguageValueObjectListDecoder
         , stringToLanguageMapLabelDecoder
         , languageMapLabelDecoder
         ]
+
+
+v2LanguageValueObjectListDecoder : Decoder LanguageMap
+v2LanguageValueObjectListDecoder =
+    Decode.list v2LanguageValueObjectDecoder
+        |> Decode.map List.concat
 
 
 v2LanguageValueObjectDecoder : Decoder LanguageMap

@@ -3,7 +3,7 @@
     "name": "rism-digital/elm-iiif",
     "summary": "IIIF API (v2 and v3) helpers, decoders, and types",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "exposed-modules": [
         "IIIF",
         "IIIF.Image",
