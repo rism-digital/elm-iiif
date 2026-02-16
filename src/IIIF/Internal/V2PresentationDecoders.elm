@@ -40,9 +40,10 @@ v2CanvasDecoder =
     succeed Canvas
         |> required "@id" string
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
-        |> required "width" (maybe Decode.int)
-        |> required "height" (maybe Decode.int)
-        |> required "images" v2AnnotationListDecoder
+        |> optional "width" (maybe Decode.int) Nothing
+        |> optional "height" (maybe Decode.int) Nothing
+        |> optional "images" v2AnnotationListDecoder []
+        |> optional "viewingHint" (maybe viewingHintDecoder) Nothing
 
 
 v2AnnotationListDecoder : Decoder (List Image)

@@ -143,6 +143,7 @@ type alias Canvas =
     , width : Maybe Int
     , height : Maybe Int
     , images : List Image
+    , viewingLayout : Maybe ViewingLayout
     }
 
 

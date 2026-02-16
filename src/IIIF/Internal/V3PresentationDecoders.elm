@@ -111,6 +111,7 @@ v3CanvasDecoder =
         |> required "width" (maybe int)
         |> required "height" (maybe int)
         |> required "items" (index 0 v3AnnotationPageDecoder)
+        |> optional "behavior" (maybe behaviourDecoder) Nothing
 
 
 v3AnnotationPageDecoder : Decoder (List Image)
