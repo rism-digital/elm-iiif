@@ -18,14 +18,7 @@ viewingDirectionDecoder =
 viewingHintDecoder : Decoder ViewingLayout
 viewingHintDecoder =
     Decode.string
-        |> Decode.andThen viewingHintValueConverter
-        |> Decode.map LayoutV2
-
-
-viewingHintValueConverter : String -> Decoder ViewingHint
-viewingHintValueConverter hint =
-    stringToViewingHint hint
-        |> Decode.succeed
+        |> Decode.map (\str -> LayoutV2 (stringToViewingHint str))
 
 
 behaviourDecoder : Decoder ViewingLayout
