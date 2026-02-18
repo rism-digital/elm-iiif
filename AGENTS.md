@@ -8,7 +8,7 @@ Specifications for this framework can be found at:
  - Image API v3: https://iiif.io/api/image/3.0/
  - Presentation API v3: https://iiif.io/api/presentation/3.0/
  - Image API v2: https://iiif.io/api/image/2.1/
- - Presentatino API v2: https://iiif.io/api/presentation/2.1/
+ - Presentation API v2: https://iiif.io/api/presentation/2.1/
 
 ## Scope
 
