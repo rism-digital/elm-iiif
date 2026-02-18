@@ -23,14 +23,9 @@ viewingHintDecoder =
 
 behaviourDecoder : Decoder ViewingLayout
 behaviourDecoder =
-    Decode.map behaviourValueConverter Decode.string
+    Decode.map stringToBehavior Decode.string
         |> Decode.list
         |> Decode.map LayoutV3
-
-
-behaviourValueConverter : String -> Behavior
-behaviourValueConverter behavior =
-    stringToBehavior behavior
 
 
 convertImageIdToImageUri : String -> Decoder ImageUri
