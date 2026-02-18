@@ -1,4 +1,4 @@
-module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextMixedListDecoder, imageContextStringDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
 
 import IIIF.Image exposing (ImageUri, parseImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
@@ -124,7 +124,7 @@ imageContextListDecoder contextValues =
         Decode.fail ("Context list does not contain a known IIIF context value: " ++ String.join ", " contextValues)
 
 
-imageContextMixedDecoder : Decoder (List (Maybe String))
+imageContextMixedDecoder : Decoder IIIFInfo
 imageContextMixedDecoder =
     Decode.list
         (Decode.oneOf
@@ -132,9 +132,4 @@ imageContextMixedDecoder =
             , Decode.succeed Nothing
             ]
         )
-
-
-imageContextMixedListDecoder : List (Maybe String) -> Decoder IIIFInfo
-imageContextMixedListDecoder maybeContext =
-    List.filterMap identity maybeContext
-        |> imageContextListDecoder
+        |> Decode.andThen (\maybeContext -> imageContextListDecoder (List.filterMap identity maybeContext))
