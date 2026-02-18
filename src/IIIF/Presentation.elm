@@ -450,7 +450,18 @@ If the list of images on a canvas is empty, it will return Nothing.
 -}
 choosePrimaryImage : List Image -> Maybe Image
 choosePrimaryImage images =
-    case find (\img -> img.imageType == PrimaryImage) images of
+    case
+        find
+            (\img ->
+                case img.imageType of
+                    PrimaryImage ->
+                        True
+
+                    ChoiceImage ->
+                        False
+            )
+            images
+    of
         Nothing ->
             List.head images
 
