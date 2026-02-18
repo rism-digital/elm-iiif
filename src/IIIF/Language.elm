@@ -66,11 +66,8 @@ type alias LabelValue =
     }
 
 
-{-|
-
-    Takes a string and returns the corresponding language type, e.g.,
-    "en" -> English.
-
+{-| Takes a string and returns the corresponding language type, e.g.,
+"en" -> English.
 -}
 parseLocaleToLanguage : String -> Language
 parseLocaleToLanguage locale =
@@ -111,12 +108,9 @@ languageValuesDecoder ( locale, translations ) =
         |> Decode.map (\lang -> LanguageValues lang translations)
 
 
-{-|
-
-    A custom decoder that takes a JSON-LD Language Map and produces a list of
-    LanguageValues Language (List String), representing each of the translations
-    available for this particular field.
-
+{-| A custom decoder that takes a JSON-LD Language Map and produces a list of
+LanguageValues Language (List String), representing each of the translations
+available for this particular field.
 -}
 languageMapDecoder : List ( String, List String ) -> Decoder LanguageMap
 languageMapDecoder json =
@@ -240,3 +234,4 @@ extractTextFromLanguageMap lang langMap =
         langMap
         |> Maybe.map (\(LanguageValues _ v) -> v)
         |> Maybe.withDefault [ "[No language value found]" ]
+
