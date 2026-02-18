@@ -51,7 +51,7 @@ v2AnnotationListDecoder =
     Decode.oneOf
         [ list (at [ "resource" ] v2ImageDecoder)
         , list (at [ "resource" ] v2ChoiceObjectDecoder)
-            |> andThen unwrapDecoderLists
+            |> Decode.map unwrapDecoderLists
         ]
 
 
@@ -60,10 +60,9 @@ creating a list from both the 'default' and 'item' block for
 the `oa:Choice` setup, we need to unwrap a the nested lists and
 return just a single list of IIIFImage data.
 -}
-unwrapDecoderLists : List (List Image) -> Decoder (List Image)
-unwrapDecoderLists lists =
-    List.concat lists
-        |> succeed
+unwrapDecoderLists : List (List Image) -> List Image
+unwrapDecoderLists =
+    List.concat
 
 
 v2ImageDecoder : Decoder Image
@@ -72,7 +71,7 @@ v2ImageDecoder =
         |> requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri)
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded PrimaryImage
-        |> requiredAt [ "service", "@context" ] (string |> andThen v2ServiceTypeDecoder)
+        |> requiredAt [ "service", "@context" ] (string |> Decode.map v2ServiceTypeDecoder)
 
 
 v2ImageDecoderVaryingType : ImageType -> Decoder Image
@@ -84,7 +83,7 @@ v2ImageDecoderVaryingType imgType =
             )
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded imgType
-        |> requiredAt [ "service", "@context" ] (string |> andThen v2ServiceTypeDecoder)
+        |> requiredAt [ "service", "@context" ] (string |> Decode.map v2ServiceTypeDecoder)
 
 
 v2ChoiceObjectDecoder : Decoder (List Image)
@@ -94,11 +93,9 @@ v2ChoiceObjectDecoder =
         (at [ "item" ] (list (v2ImageDecoderVaryingType ChoiceImage)))
 
 
-v2ServiceTypeDecoder : String -> Decoder (List ServiceTypes)
+v2ServiceTypeDecoder : String -> List ServiceTypes
 v2ServiceTypeDecoder stype =
-    stringToServiceType stype
-        |> List.singleton
-        |> succeed
+    [ stringToServiceType stype ]
 
 
 v2RangeDecoder : Decoder Range

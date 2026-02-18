@@ -66,11 +66,8 @@ type alias LabelValue =
     }
 
 
-{-|
-
-    Takes a string and returns the corresponding language type, e.g.,
-    "en" -> English.
-
+{-| Takes a string and returns the corresponding language type, e.g.,
+"en" -> English.
 -}
 parseLocaleToLanguage : String -> Language
 parseLocaleToLanguage locale =
@@ -99,30 +96,20 @@ v2LabelValueDecoder =
         |> required "value" v2LanguageMapLabelDecoder
 
 
-languageDecoder : String -> Decoder Language
-languageDecoder locale =
-    parseLocaleToLanguage locale
-        |> Decode.succeed
-
-
-languageValuesDecoder : ( String, List String ) -> Decoder LanguageValues
+languageValuesDecoder : ( String, List String ) -> LanguageValues
 languageValuesDecoder ( locale, translations ) =
-    languageDecoder locale
-        |> Decode.map (\lang -> LanguageValues lang translations)
+    LanguageValues (parseLocaleToLanguage locale) translations
 
 
-{-|
-
-    A custom decoder that takes a JSON-LD Language Map and produces a list of
-    LanguageValues Language (List String), representing each of the translations
-    available for this particular field.
-
+{-| A custom decoder that takes a JSON-LD Language Map and produces a list of
+LanguageValues Language (List String), representing each of the translations
+available for this particular field.
 -}
-languageMapDecoder : List ( String, List String ) -> Decoder LanguageMap
+languageMapDecoder : List ( String, List String ) -> LanguageMap
 languageMapDecoder json =
     List.foldl
-        (\map maps -> Decode.map2 (::) (languageValuesDecoder map) maps)
-        (Decode.succeed [])
+        (\map maps -> languageValuesDecoder map :: maps)
+        []
         json
 
 
@@ -131,7 +118,7 @@ languageMapDecoder json =
 languageMapLabelDecoder : Decoder LanguageMap
 languageMapLabelDecoder =
     Decode.keyValuePairs (list string)
-        |> andThen languageMapDecoder
+        |> Decode.map languageMapDecoder
 
 
 {-| Decoder for the case where an expected language map
@@ -240,3 +227,4 @@ extractTextFromLanguageMap lang langMap =
         langMap
         |> Maybe.map (\(LanguageValues _ v) -> v)
         |> Maybe.withDefault [ "[No language value found]" ]
+

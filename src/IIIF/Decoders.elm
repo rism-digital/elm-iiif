@@ -8,7 +8,7 @@ module IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder
 
 import IIIF.ImageInfo exposing (IIIFInfo)
 import IIIF.Internal.CoreDecoders exposing (contextListDecoder, contextStringDecoder, resourceContextListDecoder, resourceContextStringDecoder)
-import IIIF.Internal.SharedDecoders exposing (imageContextListDecoder, imageContextMixedDecoder, imageContextMixedListDecoder, imageContextStringDecoder)
+import IIIF.Internal.SharedDecoders exposing (imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder)
 import IIIF.Presentation exposing (IIIFManifest, IIIFResource)
 import Json.Decode as Decode exposing (Decoder)
 
@@ -21,7 +21,6 @@ infoJsonDecoder =
         , Decode.field "@context" (Decode.list Decode.string)
             |> Decode.andThen imageContextListDecoder
         , Decode.field "@context" imageContextMixedDecoder
-            |> Decode.andThen imageContextMixedListDecoder
         ]
 
 
