@@ -1,10 +1,10 @@
-module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
 
 import IIIF.Image exposing (ImageUri, parseImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
 import IIIF.Internal.Contexts exposing (iiifV2ImageContextString, iiifV3ImageContextString)
 import IIIF.Internal.Utilities exposing (optional, required)
-import IIIF.Presentation exposing (Behavior(..), MediaFormats(..), ResourceTypes(..), ServiceTypes(..), ViewingDirection(..), ViewingHint(..), ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToServiceType, stringToViewingDirection, stringToViewingHint)
+import IIIF.Presentation exposing (Behavior(..), MediaFormats(..), ResourceTypes(..), ServiceTypes(..), ViewingDirection(..), ViewingHint(..), ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode as Decode exposing (Decoder)
 
@@ -54,12 +54,6 @@ convertImageIdToImageUri idValue =
 
         Nothing ->
             Decode.fail "Could not decode image Url"
-
-
-serviceTypeDecoder : String -> Decoder ServiceTypes
-serviceTypeDecoder val =
-    stringToServiceType val
-        |> Decode.succeed
 
 
 formatDecoder : Decoder MediaFormats

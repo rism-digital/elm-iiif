@@ -1,10 +1,10 @@
 module IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri, imageUriToInfoUri, parseImageAddress)
-import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder)
+import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder)
 import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
-import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..))
+import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode as Decode exposing (Decoder, andThen, at, fail, field, index, int, list, map, map3, maybe, oneOf, string, succeed)
 
@@ -182,7 +182,7 @@ v3ServiceTypeDecoder =
         [ field "@type" string
         , field "type" string
         ]
-        |> andThen serviceTypeDecoder
+        |> map stringToServiceType
 
 
 v3ServiceTypeListDecoder : Decoder (List ServiceTypes)
