@@ -47,6 +47,7 @@ will hold a decoded identifier for the specific IIIF version.
 -}
 
 import IIIF.Image exposing (ImageUri)
+import IIIF.Internal.Utilities exposing (find)
 import IIIF.Language exposing (LabelValue, Language(..), LanguageMap, extractLabelFromLanguageMap)
 import IIIF.Version exposing (IIIFVersion)
 
@@ -449,12 +450,12 @@ If the list of images on a canvas is empty, it will return Nothing.
 -}
 choosePrimaryImage : List Image -> Maybe Image
 choosePrimaryImage images =
-    case List.filter (\img -> img.imageType == PrimaryImage) images of
-        [] ->
+    case find (\img -> img.imageType == PrimaryImage) images of
+        Nothing ->
             List.head images
 
-        first :: _ ->
-            Just first
+        Just img ->
+            Just img
 
 
 {-| True when the layout represents a paged/spread view.
@@ -673,3 +674,4 @@ resourceTypeFromString value =
 
         _ ->
             OtherResource value
+
