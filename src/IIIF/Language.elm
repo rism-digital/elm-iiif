@@ -105,13 +105,12 @@ languageValuesDecoder ( locale, translations ) =
 LanguageValues Language (List String), representing each of the translations
 available for this particular field.
 -}
-languageMapDecoder : List ( String, List String ) -> Decoder LanguageMap
+languageMapDecoder : List ( String, List String ) -> LanguageMap
 languageMapDecoder json =
     List.foldl
         (\map maps -> languageValuesDecoder map :: maps)
         []
         json
-        |> Decode.succeed
 
 
 {-| Decoder for a language map object.
@@ -119,7 +118,7 @@ languageMapDecoder json =
 languageMapLabelDecoder : Decoder LanguageMap
 languageMapLabelDecoder =
     Decode.keyValuePairs (list string)
-        |> andThen languageMapDecoder
+        |> Decode.map languageMapDecoder
 
 
 {-| Decoder for the case where an expected language map
