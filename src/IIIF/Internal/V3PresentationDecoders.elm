@@ -2,7 +2,7 @@ module IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3i
 
 import IIIF.Image exposing (ImageUri, imageUriToInfoUri, parseImageAddress)
 import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, serviceTypeDecoder, viewingDirectionDecoder)
-import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required)
+import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..))
 import IIIF.Version exposing (IIIFVersion(..))
@@ -290,14 +290,8 @@ v3ServiceObjectListDecoder =
 
 selectServiceId : List ServiceObject -> Maybe String
 selectServiceId services =
-    let
-        imageService3Id =
-            List.filter (\s -> s.serviceType == ImageService3) services
-                |> List.head
-                |> Maybe.map .id
-    in
-    case imageService3Id of
-        Just id ->
+    case find (\s -> s.serviceType == ImageService3) services of
+        Just { id } ->
             Just id
 
         Nothing ->
@@ -343,3 +337,4 @@ v3ResourceFromType resourceType =
 
         _ ->
             fail ("Unknown IIIF v3 resource type: " ++ resourceType)
+
