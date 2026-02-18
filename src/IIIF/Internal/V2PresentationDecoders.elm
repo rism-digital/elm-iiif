@@ -71,7 +71,7 @@ v2ImageDecoder =
         |> requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri)
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded PrimaryImage
-        |> requiredAt [ "service", "@context" ] (string |> andThen v2ServiceTypeDecoder)
+        |> requiredAt [ "service", "@context" ] (string |> Decode.map v2ServiceTypeDecoder)
 
 
 v2ImageDecoderVaryingType : ImageType -> Decoder Image
@@ -83,7 +83,7 @@ v2ImageDecoderVaryingType imgType =
             )
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded imgType
-        |> requiredAt [ "service", "@context" ] (string |> andThen v2ServiceTypeDecoder)
+        |> requiredAt [ "service", "@context" ] (string |> Decode.map v2ServiceTypeDecoder)
 
 
 v2ChoiceObjectDecoder : Decoder (List Image)
@@ -93,11 +93,9 @@ v2ChoiceObjectDecoder =
         (at [ "item" ] (list (v2ImageDecoderVaryingType ChoiceImage)))
 
 
-v2ServiceTypeDecoder : String -> Decoder (List ServiceTypes)
+v2ServiceTypeDecoder : String -> List ServiceTypes
 v2ServiceTypeDecoder stype =
-    stringToServiceType stype
-        |> List.singleton
-        |> succeed
+    [ stringToServiceType stype ]
 
 
 v2RangeDecoder : Decoder Range
