@@ -51,7 +51,7 @@ v2AnnotationListDecoder =
     Decode.oneOf
         [ list (at [ "resource" ] v2ImageDecoder)
         , list (at [ "resource" ] v2ChoiceObjectDecoder)
-            |> andThen unwrapDecoderLists
+            |> Decode.map unwrapDecoderLists
         ]
 
 
@@ -60,10 +60,9 @@ creating a list from both the 'default' and 'item' block for
 the `oa:Choice` setup, we need to unwrap a the nested lists and
 return just a single list of IIIFImage data.
 -}
-unwrapDecoderLists : List (List Image) -> Decoder (List Image)
-unwrapDecoderLists lists =
-    List.concat lists
-        |> succeed
+unwrapDecoderLists : List (List Image) -> List Image
+unwrapDecoderLists =
+    List.concat
 
 
 v2ImageDecoder : Decoder Image
