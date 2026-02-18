@@ -17,7 +17,7 @@ will detect and normalize these multilingual objects into a LanguageMap type.
 -}
 
 import IIIF.Internal.Utilities exposing (find, oneOfMaybes, required)
-import Json.Decode as Decode exposing (Decoder, andThen, list, string)
+import Json.Decode as Decode exposing (Decoder, list, string)
 
 
 {-| A language map holds one or more language-tagged values.
@@ -144,7 +144,7 @@ v2LanguageMapLabelDecoder =
 
 v2LanguageValueObjectListDecoder : Decoder LanguageMap
 v2LanguageValueObjectListDecoder =
-    Decode.list v2LanguageValueObjectDecoder
+    list v2LanguageValueObjectDecoder
         |> Decode.map List.concat
 
 
@@ -227,4 +227,3 @@ extractTextFromLanguageMap lang langMap =
         langMap
         |> Maybe.map (\(LanguageValues _ v) -> v)
         |> Maybe.withDefault [ "[No language value found]" ]
-

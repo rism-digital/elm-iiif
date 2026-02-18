@@ -22,9 +22,9 @@ value. (See, for example: <https://iiif.io/api/image/3.0/#51-image-information-r
 
 -}
 
-import Http exposing (Expect)
+import Http
 import IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
-import IIIF.ImageInfo exposing (IIIFInfo(..))
+import IIIF.ImageInfo exposing (IIIFInfo)
 import IIIF.Internal.Contexts as Contexts
 import IIIF.Internal.Request exposing (request)
 import IIIF.Presentation exposing (IIIFManifest, IIIFResource)

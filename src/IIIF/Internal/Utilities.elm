@@ -62,17 +62,6 @@ requiredAt path decoder pipeline =
     applyDecoder (Decode.at path decoder) pipeline
 
 
-optionalAt : List String -> Decoder a -> a -> Decoder (a -> b) -> Decoder b
-optionalAt path decoder fallback pipeline =
-    applyDecoder
-        (Decode.oneOf
-            [ Decode.at path decoder
-            , Decode.succeed fallback
-            ]
-        )
-        pipeline
-
-
 hardcoded : a -> Decoder (a -> b) -> Decoder b
 hardcoded value pipeline =
     applyDecoder (Decode.succeed value) pipeline

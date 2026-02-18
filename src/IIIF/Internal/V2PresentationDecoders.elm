@@ -5,7 +5,7 @@ import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, 
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes, ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode as Decode exposing (Decoder, andThen, at, lazy, list, map2, maybe, string, succeed)
+import Json.Decode as Decode exposing (Decoder, andThen, at, int, lazy, list, map, map2, maybe, oneOf, string, succeed)
 
 
 v2iiifManifestDecoder : Decoder Manifest
@@ -40,18 +40,18 @@ v2CanvasDecoder =
     succeed Canvas
         |> required "@id" string
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
-        |> optional "width" (maybe Decode.int) Nothing
-        |> optional "height" (maybe Decode.int) Nothing
+        |> optional "width" (maybe int) Nothing
+        |> optional "height" (maybe int) Nothing
         |> optional "images" v2AnnotationListDecoder []
         |> optional "viewingHint" (maybe viewingHintDecoder) Nothing
 
 
 v2AnnotationListDecoder : Decoder (List Image)
 v2AnnotationListDecoder =
-    Decode.oneOf
+    oneOf
         [ list (at [ "resource" ] v2ImageDecoder)
         , list (at [ "resource" ] v2ChoiceObjectDecoder)
-            |> Decode.map unwrapDecoderLists
+            |> map unwrapDecoderLists
         ]
 
 
@@ -71,7 +71,7 @@ v2ImageDecoder =
         |> requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri)
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded PrimaryImage
-        |> requiredAt [ "service", "@context" ] (string |> Decode.map v2ServiceTypeDecoder)
+        |> requiredAt [ "service", "@context" ] (string |> map v2ServiceTypeDecoder)
 
 
 v2ImageDecoderVaryingType : ImageType -> Decoder Image
@@ -83,7 +83,7 @@ v2ImageDecoderVaryingType imgType =
             )
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded imgType
-        |> requiredAt [ "service", "@context" ] (string |> Decode.map v2ServiceTypeDecoder)
+        |> requiredAt [ "service", "@context" ] (string |> map v2ServiceTypeDecoder)
 
 
 v2ChoiceObjectDecoder : Decoder (List Image)
@@ -119,12 +119,12 @@ v2RangeItemsDecoder =
             List.map RangeRange subranges
                 ++ List.map RangeCanvas canvases
         )
-        (Decode.oneOf
+        (oneOf
             [ Decode.field "ranges" (list v2RangeDecoder)
             , succeed []
             ]
         )
-        (Decode.oneOf
+        (oneOf
             [ Decode.field "canvases" (list string)
             , succeed []
             ]
@@ -133,9 +133,9 @@ v2RangeItemsDecoder =
 
 v2HomePageListDecoder : Decoder (List HomePage)
 v2HomePageListDecoder =
-    Decode.oneOf
+    oneOf
         [ list v2HomePageDecoder
-        , Decode.map List.singleton v2HomePageDecoder
+        , map List.singleton v2HomePageDecoder
         ]
 
 
@@ -167,17 +167,17 @@ v2iiifCollectionDecoder =
 -}
 v2CollectionItemsDecoder : Decoder (List CollectionItem)
 v2CollectionItemsDecoder =
-    Decode.oneOf
+    oneOf
         [ Decode.field "members" (list v2CollectionItemDecoder)
         , map2
             (\collections manifests -> collections ++ manifests)
-            (Decode.oneOf
-                [ Decode.field "collections" (list (Decode.map NestedCollection (lazy (\_ -> v2iiifCollectionDecoder))))
+            (oneOf
+                [ Decode.field "collections" (list (map NestedCollection (lazy (\_ -> v2iiifCollectionDecoder))))
                 , succeed []
                 ]
             )
-            (Decode.oneOf
-                [ Decode.field "manifests" (list (Decode.map ManifestItem v2CollectionItemManifestDecoder))
+            (oneOf
+                [ Decode.field "manifests" (list (map ManifestItem v2CollectionItemManifestDecoder))
                 , succeed []
                 ]
             )
@@ -194,10 +194,10 @@ v2CollectionItemFromType : String -> Decoder CollectionItem
 v2CollectionItemFromType itemType =
     case itemType of
         "sc:Collection" ->
-            Decode.map NestedCollection (lazy (\_ -> v2iiifCollectionDecoder))
+            map NestedCollection (lazy (\_ -> v2iiifCollectionDecoder))
 
         "sc:Manifest" ->
-            Decode.map ManifestItem v2CollectionItemManifestDecoder
+            map ManifestItem v2CollectionItemManifestDecoder
 
         _ ->
             Decode.fail ("Unknown collection item type: " ++ itemType)
@@ -205,9 +205,9 @@ v2CollectionItemFromType itemType =
 
 v2RequiredStatement : Decoder RequiredStatement
 v2RequiredStatement =
-    Decode.oneOf
+    oneOf
         [ string
-            |> Decode.map
+            |> map
                 (\value ->
                     { label = [ LanguageValues Default [ "Attribution" ] ]
                     , value = [ LanguageValues Default [ value ] ]
@@ -249,16 +249,16 @@ v2ResourceFromType : String -> Decoder IIIFResource
 v2ResourceFromType resourceType =
     case resourceType of
         "sc:Canvas" ->
-            Decode.map (ResourceCanvas << IIIFCanvas IIIFV2) v2CanvasDecoder
+            map (ResourceCanvas << IIIFCanvas IIIFV2) v2CanvasDecoder
 
         "sc:Collection" ->
-            Decode.map (ResourceCollection << IIIFCollection IIIFV2) v2iiifCollectionDecoder
+            map (ResourceCollection << IIIFCollection IIIFV2) v2iiifCollectionDecoder
 
         "sc:Manifest" ->
-            Decode.map (ResourceManifest << IIIFManifest IIIFV2) v2iiifManifestDecoder
+            map (ResourceManifest << IIIFManifest IIIFV2) v2iiifManifestDecoder
 
         "sc:Range" ->
-            Decode.map (ResourceRange << IIIFRange IIIFV2) v2RangeDecoder
+            map (ResourceRange << IIIFRange IIIFV2) v2RangeDecoder
 
         _ ->
             Decode.fail ("Unknown IIIF v2 resource type: " ++ resourceType)

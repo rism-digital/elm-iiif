@@ -462,11 +462,11 @@ choosePrimaryImage images =
             )
             images
     of
-        Nothing ->
-            List.head images
-
         Just img ->
             Just img
+
+        Nothing ->
+            List.head images
 
 
 {-| True when the layout represents a paged/spread view.
@@ -685,4 +685,3 @@ resourceTypeFromString value =
 
         _ ->
             OtherResource value
-

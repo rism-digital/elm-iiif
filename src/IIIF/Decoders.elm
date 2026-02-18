@@ -10,17 +10,17 @@ import IIIF.ImageInfo exposing (IIIFInfo)
 import IIIF.Internal.CoreDecoders exposing (contextListDecoder, contextStringDecoder, resourceContextListDecoder, resourceContextStringDecoder)
 import IIIF.Internal.SharedDecoders exposing (imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder)
 import IIIF.Presentation exposing (IIIFManifest, IIIFResource)
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode exposing (Decoder, andThen, field, list, oneOf, string)
 
 
 infoJsonDecoder : Decoder IIIFInfo
 infoJsonDecoder =
-    Decode.oneOf
-        [ Decode.field "@context" Decode.string
-            |> Decode.andThen imageContextStringDecoder
-        , Decode.field "@context" (Decode.list Decode.string)
-            |> Decode.andThen imageContextListDecoder
-        , Decode.field "@context" imageContextMixedDecoder
+    oneOf
+        [ field "@context" string
+            |> andThen imageContextStringDecoder
+        , field "@context" (list string)
+            |> andThen imageContextListDecoder
+        , field "@context" imageContextMixedDecoder
         ]
 
 
@@ -28,11 +28,11 @@ infoJsonDecoder =
 -}
 manifestDecoder : Decoder IIIFManifest
 manifestDecoder =
-    Decode.oneOf
-        [ Decode.field "@context" Decode.string
-            |> Decode.andThen contextStringDecoder
-        , Decode.field "@context" (Decode.list Decode.string)
-            |> Decode.andThen contextListDecoder
+    oneOf
+        [ field "@context" string
+            |> andThen contextStringDecoder
+        , field "@context" (list string)
+            |> andThen contextListDecoder
         ]
 
 
@@ -40,9 +40,9 @@ manifestDecoder =
 -}
 resourceDecoder : Decoder IIIFResource
 resourceDecoder =
-    Decode.oneOf
-        [ Decode.field "@context" Decode.string
-            |> Decode.andThen resourceContextStringDecoder
-        , Decode.field "@context" (Decode.list Decode.string)
-            |> Decode.andThen resourceContextListDecoder
+    oneOf
+        [ field "@context" string
+            |> andThen resourceContextStringDecoder
+        , field "@context" (list string)
+            |> andThen resourceContextListDecoder
         ]

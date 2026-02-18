@@ -4,107 +4,107 @@ import IIIF.Image exposing (ImageUri, parseImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
 import IIIF.Internal.Contexts exposing (iiifV2ImageContextString, iiifV3ImageContextString)
 import IIIF.Internal.Utilities exposing (optional, required)
-import IIIF.Presentation exposing (Behavior(..), MediaFormats(..), ResourceTypes(..), ServiceTypes(..), ViewingDirection(..), ViewingHint(..), ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
+import IIIF.Presentation exposing (MediaFormats, ResourceTypes, ViewingDirection, ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode exposing (Decoder, andThen, fail, int, list, map, maybe, oneOf, string, succeed)
 
 
 viewingDirectionDecoder : Decoder ViewingDirection
 viewingDirectionDecoder =
-    Decode.string
-        |> Decode.map stringToViewingDirection
+    string
+        |> map stringToViewingDirection
 
 
 viewingHintDecoder : Decoder ViewingLayout
 viewingHintDecoder =
-    Decode.string
-        |> Decode.map (\str -> LayoutV2 (stringToViewingHint str))
+    string
+        |> map (\str -> LayoutV2 (stringToViewingHint str))
 
 
 behaviourDecoder : Decoder ViewingLayout
 behaviourDecoder =
-    Decode.map stringToBehavior Decode.string
-        |> Decode.list
-        |> Decode.map LayoutV3
+    map stringToBehavior string
+        |> list
+        |> map LayoutV3
 
 
 convertImageIdToImageUri : String -> Decoder ImageUri
 convertImageIdToImageUri idValue =
     case parseImageAddress idValue of
         Just url ->
-            Decode.succeed url
+            succeed url
 
         Nothing ->
-            Decode.fail "Could not decode image Url"
+            fail "Could not decode image Url"
 
 
 formatDecoder : Decoder MediaFormats
 formatDecoder =
-    Decode.string
-        |> Decode.map mediaFormatFromString
+    string
+        |> map mediaFormatFromString
 
 
 resourceTypeDecoder : Decoder ResourceTypes
 resourceTypeDecoder =
-    Decode.string
-        |> Decode.map resourceTypeFromString
+    string
+        |> map resourceTypeFromString
 
 
 widthHeightDecoder : Decoder WidthHeight
 widthHeightDecoder =
-    Decode.succeed WidthHeight
-        |> required "width" Decode.int
-        |> required "height" Decode.int
+    succeed WidthHeight
+        |> required "width" int
+        |> required "height" int
 
 
 widthHeightScaleDecoder : Decoder WidthHeightScale
 widthHeightScaleDecoder =
-    Decode.succeed WidthHeightScale
-        |> required "width" Decode.int
-        |> optional "height" (Decode.maybe Decode.int) Nothing
-        |> required "scaleFactors" (Decode.list Decode.int)
+    succeed WidthHeightScale
+        |> required "width" int
+        |> optional "height" (maybe int) Nothing
+        |> required "scaleFactors" (list int)
 
 
 iiifInfoDecoderWith : String -> Decoder InfoJson
 iiifInfoDecoderWith idFieldName =
-    Decode.succeed InfoJson
-        |> required idFieldName (Decode.string |> Decode.andThen convertImageIdToImageUri)
-        |> required "width" Decode.int
-        |> required "height" Decode.int
-        |> optional "sizes" (Decode.maybe (Decode.list widthHeightDecoder)) Nothing
-        |> optional "tiles" (Decode.maybe (Decode.list widthHeightScaleDecoder)) Nothing
+    succeed InfoJson
+        |> required idFieldName (string |> andThen convertImageIdToImageUri)
+        |> required "width" int
+        |> required "height" int
+        |> optional "sizes" (maybe (list widthHeightDecoder)) Nothing
+        |> optional "tiles" (maybe (list widthHeightScaleDecoder)) Nothing
 
 
 imageContextStringDecoder : String -> Decoder IIIFInfo
 imageContextStringDecoder contextValue =
     if contextValue == iiifV3ImageContextString then
-        Decode.map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
+        map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
 
     else if contextValue == iiifV2ImageContextString then
-        Decode.map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
+        map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
 
     else
-        Decode.fail ("Unknown IIIF Image Context value: " ++ contextValue)
+        fail ("Unknown IIIF Image Context value: " ++ contextValue)
 
 
 imageContextListDecoder : List String -> Decoder IIIFInfo
 imageContextListDecoder contextValues =
     if List.member iiifV3ImageContextString contextValues then
-        Decode.map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
+        map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
 
     else if List.member iiifV2ImageContextString contextValues then
-        Decode.map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
+        map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
 
     else
-        Decode.fail ("Context list does not contain a known IIIF context value: " ++ String.join ", " contextValues)
+        fail ("Context list does not contain a known IIIF context value: " ++ String.join ", " contextValues)
 
 
 imageContextMixedDecoder : Decoder IIIFInfo
 imageContextMixedDecoder =
-    Decode.list
-        (Decode.oneOf
-            [ Decode.string |> Decode.map Just
-            , Decode.succeed Nothing
+    list
+        (oneOf
+            [ string |> map Just
+            , succeed Nothing
             ]
         )
-        |> Decode.andThen (\maybeContext -> imageContextListDecoder (List.filterMap identity maybeContext))
+        |> andThen (\maybeContext -> imageContextListDecoder (List.filterMap identity maybeContext))
