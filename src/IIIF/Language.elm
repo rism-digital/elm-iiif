@@ -96,10 +96,9 @@ v2LabelValueDecoder =
         |> required "value" v2LanguageMapLabelDecoder
 
 
-languageValuesDecoder : ( String, List String ) -> Decoder LanguageValues
+languageValuesDecoder : ( String, List String ) -> LanguageValues
 languageValuesDecoder ( locale, translations ) =
     LanguageValues (parseLocaleToLanguage locale) translations
-        |> Decode.succeed
 
 
 {-| A custom decoder that takes a JSON-LD Language Map and produces a list of
@@ -109,9 +108,10 @@ available for this particular field.
 languageMapDecoder : List ( String, List String ) -> Decoder LanguageMap
 languageMapDecoder json =
     List.foldl
-        (\map maps -> Decode.map2 (::) (languageValuesDecoder map) maps)
-        (Decode.succeed [])
+        (\map maps -> languageValuesDecoder map :: maps)
+        []
         json
+        |> Decode.succeed
 
 
 {-| Decoder for a language map object.
