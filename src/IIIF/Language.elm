@@ -96,16 +96,10 @@ v2LabelValueDecoder =
         |> required "value" v2LanguageMapLabelDecoder
 
 
-languageDecoder : String -> Decoder Language
-languageDecoder locale =
-    parseLocaleToLanguage locale
-        |> Decode.succeed
-
-
 languageValuesDecoder : ( String, List String ) -> Decoder LanguageValues
 languageValuesDecoder ( locale, translations ) =
-    languageDecoder locale
-        |> Decode.map (\lang -> LanguageValues lang translations)
+    LanguageValues (parseLocaleToLanguage locale) translations
+        |> Decode.succeed
 
 
 {-| A custom decoder that takes a JSON-LD Language Map and produces a list of
