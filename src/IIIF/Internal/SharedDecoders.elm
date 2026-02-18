@@ -12,13 +12,7 @@ import Json.Decode as Decode exposing (Decoder)
 viewingDirectionDecoder : Decoder ViewingDirection
 viewingDirectionDecoder =
     Decode.string
-        |> Decode.andThen viewingDirectionValueConverter
-
-
-viewingDirectionValueConverter : String -> Decoder ViewingDirection
-viewingDirectionValueConverter direction =
-    stringToViewingDirection direction
-        |> Decode.succeed
+        |> Decode.map stringToViewingDirection
 
 
 viewingHintDecoder : Decoder ViewingLayout
