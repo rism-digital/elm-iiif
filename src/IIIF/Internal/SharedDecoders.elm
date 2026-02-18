@@ -36,15 +36,14 @@ viewingHintValueConverter hint =
 
 behaviourDecoder : Decoder ViewingLayout
 behaviourDecoder =
-    Decode.andThen behaviourValueConverter Decode.string
+    Decode.map behaviourValueConverter Decode.string
         |> Decode.list
         |> Decode.map LayoutV3
 
 
-behaviourValueConverter : String -> Decoder Behavior
+behaviourValueConverter : String -> Behavior
 behaviourValueConverter behavior =
     stringToBehavior behavior
-        |> Decode.succeed
 
 
 convertImageIdToImageUri : String -> Decoder ImageUri
