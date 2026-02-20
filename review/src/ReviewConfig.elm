@@ -17,6 +17,7 @@ import NoDebug.TodoOrToString
 import NoExposingEverything
 import NoImportingEverything
 import NoInconsistentAliases
+import NoLeftPizza
 import NoMissingTypeAnnotation
 import NoMissingTypeExpose
 import NoModuleOnExposedNames
@@ -26,6 +27,7 @@ import NoSinglePatternCase
 import NoUnoptimizedRecursion
 import NoUnsortedCases
 import NoUnsortedLetDeclarations
+import NoUnsortedRecords
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
@@ -56,10 +58,10 @@ config =
     , NoUnused.Parameters.rule
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
+    , NoLeftPizza.rule NoLeftPizza.Any
     , Simplify.rule Simplify.defaults
     , NoSinglePatternCase.rule NoSinglePatternCase.fixInArgument
-
-    --, NoUnsortedRecords.rule NoUnsortedRecords.defaults
+    , NoUnsortedRecords.rule NoUnsortedRecords.defaults
     , NoUnsortedLetDeclarations.rule
         (NoUnsortedLetDeclarations.sortLetDeclarations
             |> NoUnsortedLetDeclarations.usedInExpressionLast

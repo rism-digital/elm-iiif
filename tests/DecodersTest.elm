@@ -14,24 +14,26 @@ import Test exposing (Test, describe, test)
 tests : Test
 tests =
     describe "IIIF.Decoders"
-        [ test "manifestDecoder parses minimal v3 manifest" <|
-            \_ ->
+        [ test "manifestDecoder parses minimal v3 manifest"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v3ManifestJson of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True (version == IIIFV3 && manifest.id == "https://example.org/manifest")
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses minimal v2 manifest" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses minimal v2 manifest"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJson of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True (version == IIIFV2 && manifest.id == "https://example.org/manifest")
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses v2 canvas without images" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses v2 canvas without images"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJsonCanvasWithoutImages of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True
@@ -45,8 +47,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses v2 canvas with only id type and label" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses v2 canvas with only id type and label"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJsonCanvasLabelOnly of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True
@@ -60,8 +63,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses v2 metadata with multilingual value object list" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses v2 metadata with multilingual value object list"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJsonWithMultilingualMetadata of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True
@@ -75,8 +79,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses v2 metadata multilingual list for both label and value" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses v2 metadata multilingual list for both label and value"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJsonWithMultilingualLabelAndValueMetadata of
                     Ok (IIIFManifest version manifest) ->
                         case List.head manifest.metadata of
@@ -95,8 +100,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "resourceDecoder parses v3 manifest resource" <|
-            \_ ->
+            )
+        , test "resourceDecoder parses v3 manifest resource"
+            (\_ ->
                 case Decode.decodeString resourceDecoder v3ResourceJson of
                     Ok (ResourceManifest (IIIFManifest version manifest)) ->
                         Expect.equal True (version == IIIFV3 && manifest.id == "https://example.org/manifest")
@@ -106,8 +112,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "resourceDecoder parses v2 manifest resource" <|
-            \_ ->
+            )
+        , test "resourceDecoder parses v2 manifest resource"
+            (\_ ->
                 case Decode.decodeString resourceDecoder v2ResourceJson of
                     Ok (ResourceManifest (IIIFManifest version manifest)) ->
                         Expect.equal True (version == IIIFV2 && manifest.id == "https://example.org/manifest")
@@ -117,24 +124,27 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "infoJsonDecoder parses v3 image info" <|
-            \_ ->
+            )
+        , test "infoJsonDecoder parses v3 image info"
+            (\_ ->
                 case Decode.decodeString infoJsonDecoder v3InfoJson of
                     Ok (IIIFInfo version info) ->
                         Expect.equal True (version == IIIFV3 && info.width == 640 && info.height == 480)
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "infoJsonDecoder parses v2 image info" <|
-            \_ ->
+            )
+        , test "infoJsonDecoder parses v2 image info"
+            (\_ ->
                 case Decode.decodeString infoJsonDecoder v2InfoJson of
                     Ok (IIIFInfo version info) ->
                         Expect.equal True (version == IIIFV2 && info.width == 300 && info.height == 200)
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "infoJsonDecoder parses real-world v2 info.json" <|
-            \_ ->
+            )
+        , test "infoJsonDecoder parses real-world v2 info.json"
+            (\_ ->
                 case Decode.decodeString infoJsonDecoder v2RealWorldInfoJson of
                     Ok (IIIFInfo version info) ->
                         Expect.equal True
@@ -152,8 +162,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "infoJsonDecoder parses real-world v3 info.json" <|
-            \_ ->
+            )
+        , test "infoJsonDecoder parses real-world v3 info.json"
+            (\_ ->
                 case Decode.decodeString infoJsonDecoder v3RealWorldInfoJson of
                     Ok (IIIFInfo version info) ->
                         Expect.equal True
@@ -171,8 +182,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses real-world v2 manifest" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses real-world v2 manifest"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v2RealWorldManifest of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True
@@ -186,8 +198,9 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
-        , test "manifestDecoder parses real-world v3 manifest" <|
-            \_ ->
+            )
+        , test "manifestDecoder parses real-world v3 manifest"
+            (\_ ->
                 case Decode.decodeString manifestDecoder v3RealWorldManifest of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True
@@ -201,6 +214,7 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
+            )
         ]
 
 

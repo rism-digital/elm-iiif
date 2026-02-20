@@ -9,8 +9,8 @@ import Test exposing (Test, describe, test)
 tests : Test
 tests =
     describe "IIIF.Language"
-        [ test "extractLabelFromLanguageMap prefers requested language" <|
-            \_ ->
+        [ test "extractLabelFromLanguageMap prefers requested language"
+            (\_ ->
                 let
                     langMap =
                         [ LanguageValues (LanguageCode "en") [ "Hello", "World" ]
@@ -20,8 +20,9 @@ tests =
                 in
                 extractLabelFromLanguageMap (LanguageCode "en") langMap
                     |> Expect.equal "Hello; World"
-        , test "extractLabelFromLanguageMap falls back to none" <|
-            \_ ->
+            )
+        , test "extractLabelFromLanguageMap falls back to none"
+            (\_ ->
                 let
                     langMap =
                         [ LanguageValues None [ "None" ]
@@ -30,8 +31,9 @@ tests =
                 in
                 extractLabelFromLanguageMap (LanguageCode "de") langMap
                     |> Expect.equal "None"
-        , test "extractLabelFromLanguageMap falls back to default" <|
-            \_ ->
+            )
+        , test "extractLabelFromLanguageMap falls back to default"
+            (\_ ->
                 let
                     langMap =
                         [ LanguageValues Default [ "Default" ]
@@ -39,20 +41,23 @@ tests =
                 in
                 extractLabelFromLanguageMap (LanguageCode "de") langMap
                     |> Expect.equal "Default"
-        , test "stringToLanguageMapLabelDecoder wraps string as Default" <|
-            \_ ->
+            )
+        , test "stringToLanguageMapLabelDecoder wraps string as Default"
+            (\_ ->
                 Decode.decodeString stringToLanguageMapLabelDecoder "\"Plain\""
                     |> Expect.equal (Ok [ LanguageValues Default [ "Plain" ] ])
-        , test "v2LanguageMapLabelDecoder parses @value/@language object" <|
-            \_ ->
+            )
+        , test "v2LanguageMapLabelDecoder parses @value/@language object"
+            (\_ ->
                 let
                     json =
                         "{\"@value\":\"Title\",\"@language\":\"fr\"}"
                 in
                 Decode.decodeString v2LanguageMapLabelDecoder json
                     |> Expect.equal (Ok [ LanguageValues (LanguageCode "fr") [ "Title" ] ])
-        , test "v2LanguageMapLabelDecoder parses list of @value/@language objects" <|
-            \_ ->
+            )
+        , test "v2LanguageMapLabelDecoder parses list of @value/@language objects"
+            (\_ ->
                 let
                     json =
                         "[{\"@value\":\"Title\",\"@language\":\"en\"},{\"@value\":\"Titel\",\"@language\":\"de\"},{\"@value\":\"書名\",\"@language\":\"zh\"}]"
@@ -65,8 +70,9 @@ tests =
                             , LanguageValues (LanguageCode "zh") [ "書名" ]
                             ]
                         )
-        , test "languageMapLabelDecoder reads language map object" <|
-            \_ ->
+            )
+        , test "languageMapLabelDecoder reads language map object"
+            (\_ ->
                 let
                     json =
                         "{\"en\":[\"Hi\"],\"de\":[\"Hallo\"]}"
@@ -105,4 +111,5 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
+            )
         ]

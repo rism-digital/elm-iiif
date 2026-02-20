@@ -8,11 +8,11 @@ import Http exposing (Expect)
 request : List String -> Expect msg -> String -> Cmd msg
 request acceptHeaders expect url =
     Http.request
-        { method = "GET"
-        , headers = List.map (Http.header "Accept") acceptHeaders
-        , url = url
-        , body = Http.emptyBody
+        { body = Http.emptyBody
         , expect = expect
+        , headers = List.map (Http.header "Accept") acceptHeaders
+        , method = "GET"
         , timeout = Nothing
         , tracker = Nothing
+        , url = url
         }

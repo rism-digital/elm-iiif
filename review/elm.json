@@ -17,7 +17,8 @@
             "jfmengels/elm-review-simplify": "2.1.15",
             "jfmengels/elm-review-unused": "1.2.6",
             "sparksp/elm-review-imports": "1.0.2",
-            "stil4m/elm-syntax": "7.3.9"
+            "stil4m/elm-syntax": "7.3.9",
+            "truqu/elm-review-noleftpizza": "2.0.1"
         },
         "indirect": {
             "avh4/elm-fifo": "1.0.4",
