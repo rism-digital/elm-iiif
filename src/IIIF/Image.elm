@@ -834,7 +834,7 @@ sizeRegionParser inp =
     in
     case transformedInput of
         x :: y :: w :: h :: [] ->
-            Just <| SizeRegion { x = x, y = y, w = w, h = h }
+            Just (SizeRegion { x = x, y = y, w = w, h = h })
 
         _ ->
             Nothing
@@ -854,7 +854,7 @@ pctSizeRegionParser inp =
     in
     case transformedInput of
         x :: y :: w :: h :: [] ->
-            Just <| PctSizeRegion { x = x, y = y, w = w, h = h }
+            Just (PctSizeRegion { x = x, y = y, w = w, h = h })
 
         _ ->
             Nothing
