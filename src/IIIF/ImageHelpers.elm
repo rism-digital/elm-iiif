@@ -23,9 +23,9 @@ calculateImageUrlsFromInfoJson : Int -> Int -> InfoJson -> List UriMap
 calculateImageUrlsFromInfoJson pnum scale infoJson =
     let
         defaultTList =
-            { height = Just 256
+            { width = 256
+            , height = Just 256
             , scaleFactors = [ 1, 2, 4, 8, 16, 32 ]
-            , width = 256
             }
 
         tiles =
@@ -135,7 +135,7 @@ createIiifTileUrl uri pnum { width, height } ( row, col ) ( tw, th ) s =
                 hei_
 
         region =
-            SizeRegion { h = hei, w = wid, x = ulx, y = uly }
+            SizeRegion { x = ulx, y = uly, w = wid, h = hei }
 
         size =
             WidthAndHeightSize ( ws, hs )
