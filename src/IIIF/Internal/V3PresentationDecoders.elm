@@ -1,6 +1,6 @@
 module IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3iiifManifestDecoder)
 
-import IIIF.Image exposing (ImageUri, imageUriToInfoUri, parseImageAddress)
+import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri)
 import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder)
 import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
@@ -137,19 +137,8 @@ v3AnnotationChoiceTypeDecoder annotType =
 
 v3ImageBodyDecoder : Decoder (List Image)
 v3ImageBodyDecoder =
-    at [ "body", "id" ] string
-        |> andThen v3AnnotationImageDecoder
-
-
-v3AnnotationImageDecoder : String -> Decoder (List Image)
-v3AnnotationImageDecoder imageUrl =
-    case parseImageAddress imageUrl of
-        Just _ ->
-            field "body" (v3ImageDecoder PrimaryImage)
-                |> map List.singleton
-
-        Nothing ->
-            fail "Could not decode image url"
+    field "body" (v3ImageDecoder PrimaryImage)
+        |> map List.singleton
 
 
 v3ImageDecoder : ImageType -> Decoder Image
@@ -301,17 +290,21 @@ selectServiceId services =
 
 v3ImageIdFromServiceDecoder : Decoder ImageUri
 v3ImageIdFromServiceDecoder =
-    field "service" v3ServiceObjectListDecoder
-        |> andThen
-            (\services ->
-                case selectServiceId services of
-                    Just id ->
-                        convertImageIdToImageUri id
-                            |> map imageUriToInfoUri
+    oneOf
+        [ field "service" v3ServiceObjectListDecoder
+            |> andThen
+                (\services ->
+                    case selectServiceId services of
+                        Just id ->
+                            convertImageIdToImageUri id
+                                |> map imageUriToInfoUri
 
-                    Nothing ->
-                        fail "No valid service ID found in service array"
-            )
+                        Nothing ->
+                            fail "No valid service ID found in service array"
+                )
+        , field "id" string
+            |> map PlainImageUri
+        ]
 
 
 v3ResourceTypeDecoder : Decoder IIIFResource
@@ -337,4 +330,3 @@ v3ResourceFromType resourceType =
 
         _ ->
             fail ("Unknown IIIF v3 resource type: " ++ resourceType)
-

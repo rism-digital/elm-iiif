@@ -23,6 +23,27 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "manifestDecoder parses v3 image body without an Image API service"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v3ManifestJsonPlainImage of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                            Just image ->
+                                Expect.equal True
+                                    (version
+                                        == IIIFV3
+                                        && createImageAddress image.id
+                                        == "https://example.org/image/plain.jpg"
+                                        && image.service
+                                        == []
+                                    )
+
+                            Nothing ->
+                                Expect.fail "Expected one image on the first canvas"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "manifestDecoder parses minimal v2 manifest"
             (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJson of
@@ -221,6 +242,11 @@ tests =
 v3ManifestJson : String
 v3ManifestJson =
     "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/iiif/2/abc/info.json\",\"type\":\"Image\",\"service\":{\"id\":\"https://example.org/iiif/2/abc\",\"type\":\"ImageService3\"}}}]}]}]}"
+
+
+v3ManifestJsonPlainImage : String
+v3ManifestJsonPlainImage =
+    "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}}]}]}]}"
 
 
 v2ManifestJson : String

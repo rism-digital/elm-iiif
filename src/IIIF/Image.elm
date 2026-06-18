@@ -61,7 +61,9 @@ import Url exposing (Protocol(..), Url)
 
 
 {-| A parsed IIIF Image URI. The InfoUri is used to construct URLs to the 'info.json' document,
-while the ImageUri is used to construct Image API calls for regions, sizes, etc.
+while the ImageUri is used to construct Image API calls for regions, sizes, etc. The
+PlainImageUri holds the URL of a static image that has no IIIF Image API service; it is
+rendered verbatim and is not manipulable through region/size helpers.
 
 Example:
 
@@ -71,6 +73,7 @@ Example:
 type ImageUri
     = InfoUri ImageServerParameters
     | ImageUri ImageRequestParameters
+    | PlainImageUri String
 
 
 {-| Parameters for the base image server URI (info.json).
@@ -195,6 +198,9 @@ createImageAddress iiifUri =
         ImageUri params ->
             createImageUri params
 
+        PlainImageUri url ->
+            url
+
 
 {-| Parse a IIIF Image URL string into a IIIFImageUri record.
 -}
@@ -217,6 +223,9 @@ infoUriToImageUri inp =
         ImageUri _ ->
             inp
 
+        PlainImageUri _ ->
+            inp
+
 
 {-| Convert a full image request URI to its info.json URI.
 -}
@@ -229,22 +238,28 @@ imageUriToInfoUri inp =
         ImageUri params ->
             InfoUri { host = params.host, prefix = params.prefix }
 
+        PlainImageUri _ ->
+            inp
+
 
 {-| Set the size component of an image URI. If an InfoUri is provided
 it will convert it to an ImageUri and then apply the size setting.
 -}
 setImageUriSize : ImageSize -> ImageUri -> ImageUri
 setImageUriSize size uri =
-    let
-        normParams =
-            case uri of
-                InfoUri p ->
-                    imageServerToImageRequest p
+    case uri of
+        PlainImageUri _ ->
+            uri
 
-                ImageUri p ->
-                    p
-    in
-    ImageUri { normParams | size = size }
+        InfoUri p ->
+            let
+                normParams =
+                    imageServerToImageRequest p
+            in
+            ImageUri { normParams | size = size }
+
+        ImageUri p ->
+            ImageUri { p | size = size }
 
 
 {-| Set the region component of an IIIFImageUri. If a InfoUri is provided
@@ -252,16 +267,19 @@ it is converted to a ImageUri and then the region is set.
 -}
 setImageUriRegion : ImageRegion -> ImageUri -> ImageUri
 setImageUriRegion region uri =
-    let
-        normParams =
-            case uri of
-                InfoUri p ->
-                    imageServerToImageRequest p
+    case uri of
+        PlainImageUri _ ->
+            uri
 
-                ImageUri p ->
-                    p
-    in
-    ImageUri { normParams | region = region }
+        InfoUri p ->
+            let
+                normParams =
+                    imageServerToImageRequest p
+            in
+            ImageUri { normParams | region = region }
+
+        ImageUri p ->
+            ImageUri { p | region = region }
 
 
 {-| Expand a base image server URI into default image request parameters.
