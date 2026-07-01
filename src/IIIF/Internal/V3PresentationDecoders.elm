@@ -1,12 +1,12 @@
 module IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3iiifManifestDecoder)
 
-import IIIF.Image exposing (ImageUri, imageUriToInfoUri, parseImageAddress)
-import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder)
+import IIIF.Image exposing (ImageUri, imageUriToInfoUri)
+import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder)
 import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode as Decode exposing (Decoder, andThen, at, fail, field, index, int, list, map, map3, maybe, oneOf, string, succeed)
+import Json.Decode as Decode exposing (Decoder, Value, andThen, at, fail, field, index, int, list, map, map3, maybe, oneOf, string, succeed, value)
 
 
 v3iiifManifestDecoder : Decoder Manifest
@@ -137,25 +137,14 @@ v3AnnotationChoiceTypeDecoder annotType =
 
 v3ImageBodyDecoder : Decoder (List Image)
 v3ImageBodyDecoder =
-    at [ "body", "id" ] string
-        |> andThen v3AnnotationImageDecoder
-
-
-v3AnnotationImageDecoder : String -> Decoder (List Image)
-v3AnnotationImageDecoder imageUrl =
-    case parseImageAddress imageUrl of
-        Just _ ->
-            field "body" (v3ImageDecoder PrimaryImage)
-                |> map List.singleton
-
-        Nothing ->
-            fail "Could not decode image url"
+    field "body" (v3ImageDecoder PrimaryImage)
+        |> map List.singleton
 
 
 v3ImageDecoder : ImageType -> Decoder Image
 v3ImageDecoder imageType =
     succeed Image
-        |> custom v3ImageIdFromServiceDecoder
+        |> custom v3ImageIdDecoder
         |> optional "label" (maybe v3LabelDecoder) Nothing
         |> hardcoded imageType
         |> optional "service" v3ServiceTypeListDecoder []
@@ -314,6 +303,23 @@ v3ImageIdFromServiceDecoder =
             )
 
 
+v3ImageIdDecoder : Decoder ImageUri
+v3ImageIdDecoder =
+    maybe (field "service" value)
+        |> andThen v3ImageIdDecoderWithServicePresence
+
+
+v3ImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
+v3ImageIdDecoderWithServicePresence maybeService =
+    case maybeService of
+        Just _ ->
+            v3ImageIdFromServiceDecoder
+
+        Nothing ->
+            field "id" string
+                |> andThen convertStaticImageIdToImageUri
+
+
 v3ResourceTypeDecoder : Decoder IIIFResource
 v3ResourceTypeDecoder =
     field "type" string
@@ -337,4 +343,3 @@ v3ResourceFromType resourceType =
 
         _ ->
             fail ("Unknown IIIF v3 resource type: " ++ resourceType)
-

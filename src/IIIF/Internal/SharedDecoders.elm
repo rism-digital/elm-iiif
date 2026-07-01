@@ -1,6 +1,6 @@
-module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
 
-import IIIF.Image exposing (ImageUri, parseImageAddress)
+import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri, parseImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
 import IIIF.Internal.Contexts exposing (iiifV2ImageContextString, iiifV3ImageContextString)
 import IIIF.Internal.Utilities exposing (optional, required)
@@ -31,11 +31,24 @@ behaviourDecoder =
 convertImageIdToImageUri : String -> Decoder ImageUri
 convertImageIdToImageUri idValue =
     case parseImageAddress idValue of
+        Just (StaticImageUri params) ->
+            succeed (InfoUri params)
+
         Just url ->
-            succeed url
+            succeed (imageUriToInfoUri url)
 
         Nothing ->
             fail "Could not decode image Url"
+
+
+convertStaticImageIdToImageUri : String -> Decoder ImageUri
+convertStaticImageIdToImageUri idValue =
+    case parseImageAddress idValue of
+        Just (StaticImageUri params) ->
+            succeed (StaticImageUri params)
+
+        _ ->
+            fail "Could not decode static image Url"
 
 
 formatDecoder : Decoder MediaFormats

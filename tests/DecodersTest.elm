@@ -2,7 +2,7 @@ module DecodersTest exposing (tests)
 
 import Expect
 import IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
-import IIIF.Image exposing (createImageAddress)
+import IIIF.Image exposing (ImageUri(..), createImageAddress, parseImageAddress)
 import IIIF.ImageInfo exposing (IIIFInfo(..))
 import IIIF.Language exposing (Language(..), extractLabelFromLanguageMap)
 import IIIF.Presentation exposing (IIIFManifest(..), IIIFResource(..))
@@ -23,11 +23,51 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "manifestDecoder parses v3 image body without an Image API service"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v3ManifestJsonPlainImage of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                            Just image ->
+                                Expect.equal True
+                                    (version
+                                        == IIIFV3
+                                        && createImageAddress image.id
+                                        == "https://example.org/image/plain.jpg"
+                                        && List.isEmpty image.service
+                                    )
+
+                            Nothing ->
+                                Expect.fail "Expected one image on the first canvas"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "manifestDecoder parses minimal v2 manifest"
             (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJson of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True (version == IIIFV2 && manifest.id == "https://example.org/manifest")
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder parses v2 image resource without an Image API service"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v2ManifestJsonPlainImage of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                            Just image ->
+                                Expect.equal True
+                                    (version
+                                        == IIIFV2
+                                        && createImageAddress image.id
+                                        == "https://example.org/image/plain.jpg"
+                                        && List.isEmpty image.service
+                                    )
+
+                            Nothing ->
+                                Expect.fail "Expected one image on the first canvas"
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -215,6 +255,27 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "parseImageAddress round-trips static image urls"
+            (\_ ->
+                case parseImageAddress "https://example.org/image/plain.jpg?download=1" of
+                    Just (StaticImageUri params) ->
+                        Expect.equal "https://example.org/image/plain.jpg?download=1" (createImageAddress (StaticImageUri params))
+
+                    Just _ ->
+                        Expect.fail "Expected StaticImageUri"
+
+                    Nothing ->
+                        Expect.fail "Expected static image url to parse"
+            )
+        , test "manifestDecoder rejects malformed v3 image services"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v3ManifestJsonMalformedService of
+                    Ok _ ->
+                        Expect.fail "Expected malformed service to fail decoding"
+
+                    Err _ ->
+                        Expect.pass
+            )
         ]
 
 
@@ -223,9 +284,24 @@ v3ManifestJson =
     "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/iiif/2/abc/info.json\",\"type\":\"Image\",\"service\":{\"id\":\"https://example.org/iiif/2/abc\",\"type\":\"ImageService3\"}}}]}]}]}"
 
 
+v3ManifestJsonPlainImage : String
+v3ManifestJsonPlainImage =
+    "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}}]}]}]}"
+
+
+v3ManifestJsonMalformedService : String
+v3ManifestJsonMalformedService =
+    "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"service\":{\"type\":\"ImageService3\"}}}]}]}]}"
+
+
 v2ManifestJson : String
 v2ManifestJson =
     "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"service\":{\"@id\":\"https://example.org/iiif/2/abc\",\"@context\":\"http://iiif.io/api/image/2/context.json\"}}}]}]}]}"
+
+
+v2ManifestJsonPlainImage : String
+v2ManifestJsonPlainImage =
+    "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"@id\":\"https://example.org/image/plain.jpg\",\"@type\":\"dctypes:Image\",\"format\":\"image/jpeg\"}}]}]}]}"
 
 
 v2ManifestJsonCanvasWithoutImages : String

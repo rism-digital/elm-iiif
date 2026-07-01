@@ -71,6 +71,7 @@ Example:
 type ImageUri
     = InfoUri ImageServerParameters
     | ImageUri ImageRequestParameters
+    | StaticImageUri ImageServerParameters
 
 
 {-| Parameters for the base image server URI (info.json).
@@ -195,6 +196,9 @@ createImageAddress iiifUri =
         ImageUri params ->
             createImageUri params
 
+        StaticImageUri params ->
+            params.host ++ params.prefix
+
 
 {-| Parse a IIIF Image URL string into a IIIFImageUri record.
 -}
@@ -217,6 +221,9 @@ infoUriToImageUri inp =
         ImageUri _ ->
             inp
 
+        StaticImageUri _ ->
+            inp
+
 
 {-| Convert a full image request URI to its info.json URI.
 -}
@@ -229,22 +236,25 @@ imageUriToInfoUri inp =
         ImageUri params ->
             InfoUri { host = params.host, prefix = params.prefix }
 
+        StaticImageUri _ ->
+            inp
+
 
 {-| Set the size component of an image URI. If an InfoUri is provided
 it will convert it to an ImageUri and then apply the size setting.
 -}
 setImageUriSize : ImageSize -> ImageUri -> ImageUri
 setImageUriSize size uri =
-    let
-        normParams =
-            case uri of
-                InfoUri p ->
-                    imageServerToImageRequest p
+    case uri of
+        InfoUri p ->
+            imageServerToImageRequest p
+                |> (\normParams -> ImageUri { normParams | size = size })
 
-                ImageUri p ->
-                    p
-    in
-    ImageUri { normParams | size = size }
+        ImageUri p ->
+            ImageUri { p | size = size }
+
+        StaticImageUri _ ->
+            uri
 
 
 {-| Set the region component of an IIIFImageUri. If a InfoUri is provided
@@ -252,16 +262,16 @@ it is converted to a ImageUri and then the region is set.
 -}
 setImageUriRegion : ImageRegion -> ImageUri -> ImageUri
 setImageUriRegion region uri =
-    let
-        normParams =
-            case uri of
-                InfoUri p ->
-                    imageServerToImageRequest p
+    case uri of
+        InfoUri p ->
+            imageServerToImageRequest p
+                |> (\normParams -> ImageUri { normParams | region = region })
 
-                ImageUri p ->
-                    p
-    in
-    ImageUri { normParams | region = region }
+        ImageUri p ->
+            ImageUri { p | region = region }
+
+        StaticImageUri _ ->
+            uri
 
 
 {-| Expand a base image server URI into default image request parameters.
@@ -438,7 +448,7 @@ possibleSuffixes =
 {-| Parse an `Url` into a IIIF image or info.json URI.
 -}
 parseImageUrl : Url -> Maybe ImageUri
-parseImageUrl { protocol, host, port_, path } =
+parseImageUrl { protocol, host, port_, path, query } =
     let
         protocolStr =
             case protocol of
@@ -461,8 +471,20 @@ parseImageUrl { protocol, host, port_, path } =
     if isImageApiUri then
         imageUriFromComponents addr splitPath
 
-    else
+    else if String.endsWith "info.json" path then
         infoUriFromComponents addr splitPath
+
+    else
+        let
+            pathWithQuery =
+                case query of
+                    Just queryString ->
+                        path ++ "?" ++ queryString
+
+                    Nothing ->
+                        path
+        in
+        staticImageUriFromComponents addr pathWithQuery
 
 
 {-| Construct a split path into an info.json URI. Useful if you have
@@ -483,6 +505,11 @@ infoUriFromComponents host pathComponents =
             String.join "/" (remove "info.json" pathComponents)
     in
     Just (InfoUri { host = host, prefix = identifier })
+
+
+staticImageUriFromComponents : String -> String -> Maybe ImageUri
+staticImageUriFromComponents host path =
+    Just (StaticImageUri { host = host, prefix = path })
 
 
 {-| Parse a split path into an image request URI. Like infoUriParser, this
