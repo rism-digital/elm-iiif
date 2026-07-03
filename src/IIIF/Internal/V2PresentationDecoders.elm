@@ -1,11 +1,12 @@
 module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 
-import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+import IIIF.Image exposing (ImageUri)
+import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, requiredAt)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes, ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode as Decode exposing (Decoder, andThen, at, int, lazy, list, map, map2, maybe, oneOf, string, succeed)
+import Json.Decode as Decode exposing (Decoder, Value, andThen, at, fail, field, int, lazy, list, map, map2, maybe, oneOf, string, succeed, value)
 
 
 v2iiifManifestDecoder : Decoder Manifest
@@ -68,22 +69,19 @@ unwrapDecoderLists =
 v2ImageDecoder : Decoder Image
 v2ImageDecoder =
     succeed Image
-        |> requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri)
+        |> custom v2ImageIdDecoder
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded PrimaryImage
-        |> requiredAt [ "service", "@context" ] (string |> map v2ServiceTypeDecoder)
+        |> custom v2ImageServiceTypesDecoder
 
 
 v2ImageDecoderVaryingType : ImageType -> Decoder Image
 v2ImageDecoderVaryingType imgType =
     succeed Image
-        |> required "@id"
-            (string
-                |> andThen convertImageIdToImageUri
-            )
+        |> custom v2ImageIdDecoder
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded imgType
-        |> requiredAt [ "service", "@context" ] (string |> map v2ServiceTypeDecoder)
+        |> custom v2ImageServiceTypesDecoder
 
 
 v2ChoiceObjectDecoder : Decoder (List Image)
@@ -91,6 +89,38 @@ v2ChoiceObjectDecoder =
     map2 (::)
         (at [ "default" ] v2ImageDecoder)
         (at [ "item" ] (list (v2ImageDecoderVaryingType ChoiceImage)))
+
+
+v2ImageIdDecoder : Decoder ImageUri
+v2ImageIdDecoder =
+    maybe (field "service" value)
+        |> andThen v2ImageIdDecoderWithServicePresence
+
+
+v2ImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
+v2ImageIdDecoderWithServicePresence maybeService =
+    case maybeService of
+        Just _ ->
+            requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri) (succeed identity)
+
+        Nothing ->
+            required "@id" (string |> andThen convertStaticImageIdToImageUri) (succeed identity)
+
+
+v2ImageServiceTypesDecoder : Decoder (List ServiceTypes)
+v2ImageServiceTypesDecoder =
+    maybe (field "service" value)
+        |> andThen v2ImageServiceTypesDecoderWithServicePresence
+
+
+v2ImageServiceTypesDecoderWithServicePresence : Maybe Value -> Decoder (List ServiceTypes)
+v2ImageServiceTypesDecoderWithServicePresence maybeService =
+    case maybeService of
+        Just _ ->
+            requiredAt [ "service", "@context" ] (string |> map v2ServiceTypeDecoder) (succeed identity)
+
+        Nothing ->
+            succeed []
 
 
 v2ServiceTypeDecoder : String -> List ServiceTypes
@@ -120,12 +150,12 @@ v2RangeItemsDecoder =
                 ++ List.map RangeCanvas canvases
         )
         (oneOf
-            [ Decode.field "ranges" (list v2RangeDecoder)
+            [ field "ranges" (list v2RangeDecoder)
             , succeed []
             ]
         )
         (oneOf
-            [ Decode.field "canvases" (list string)
+            [ field "canvases" (list string)
             , succeed []
             ]
         )
@@ -168,16 +198,16 @@ v2iiifCollectionDecoder =
 v2CollectionItemsDecoder : Decoder (List CollectionItem)
 v2CollectionItemsDecoder =
     oneOf
-        [ Decode.field "members" (list v2CollectionItemDecoder)
+        [ field "members" (list v2CollectionItemDecoder)
         , map2
             (\collections manifests -> collections ++ manifests)
             (oneOf
-                [ Decode.field "collections" (list (map NestedCollection (lazy (\_ -> v2iiifCollectionDecoder))))
+                [ field "collections" (list (map NestedCollection (lazy (\_ -> v2iiifCollectionDecoder))))
                 , succeed []
                 ]
             )
             (oneOf
-                [ Decode.field "manifests" (list (map ManifestItem v2CollectionItemManifestDecoder))
+                [ field "manifests" (list (map ManifestItem v2CollectionItemManifestDecoder))
                 , succeed []
                 ]
             )
@@ -186,7 +216,7 @@ v2CollectionItemsDecoder =
 
 v2CollectionItemDecoder : Decoder CollectionItem
 v2CollectionItemDecoder =
-    Decode.field "@type" string
+    field "@type" string
         |> andThen v2CollectionItemFromType
 
 
@@ -200,7 +230,7 @@ v2CollectionItemFromType itemType =
             map ManifestItem v2CollectionItemManifestDecoder
 
         _ ->
-            Decode.fail ("Unknown collection item type: " ++ itemType)
+            fail ("Unknown collection item type: " ++ itemType)
 
 
 v2RequiredStatement : Decoder RequiredStatement
@@ -241,7 +271,7 @@ v2CollectionItemManifestDecoder =
 
 v2ResourceTypeDecoder : Decoder IIIFResource
 v2ResourceTypeDecoder =
-    Decode.field "@type" string
+    field "@type" string
         |> andThen v2ResourceFromType
 
 
@@ -261,4 +291,4 @@ v2ResourceFromType resourceType =
             map (ResourceRange << IIIFRange IIIFV2) v2RangeDecoder
 
         _ ->
-            Decode.fail ("Unknown IIIF v2 resource type: " ++ resourceType)
+            fail ("Unknown IIIF v2 resource type: " ++ resourceType)
