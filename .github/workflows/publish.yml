@@ -1,0 +1,120 @@
+name: Publish Elm Package
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ !contains(github.event.head_commit.message, '[release-bot]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+
+      - name: Install Elm
+        run: npm install -g elm@0.19.1-6
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run tests
+        run: yarn test
+
+      - name: Detect releasable API changes
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          diff_output="$(elm diff)"
+          printf '%s\n' "$diff_output"
+
+          if printf '%s\n' "$diff_output" | grep -q "No API changes detected"; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump package version
+        if: ${{ steps.diff.outputs.should_publish == 'true' }}
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_version=$(node -p "require('./elm.json').version")
+          printf 'y\n' | elm bump
+          next_version=$(node -p "require('./elm.json').version")
+
+          if [ "$current_version" = "$next_version" ]; then
+            echo "elm bump did not update elm.json" >&2
+            exit 1
+          fi
+
+          echo "current_version=$current_version" >> "$GITHUB_OUTPUT"
+          echo "next_version=$next_version" >> "$GITHUB_OUTPUT"
+
+      - name: Commit bumped elm.json
+        if: ${{ steps.diff.outputs.should_publish == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add elm.json
+          git commit -m "chore(release): ${{ steps.bump.outputs.next_version }} [release-bot]"
+
+      - name: Create release tag
+        if: ${{ steps.diff.outputs.should_publish == 'true' }}
+        run: git tag "${{ steps.bump.outputs.next_version }}"
+
+      - name: Push release commit and tag
+        if: ${{ steps.diff.outputs.should_publish == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git push origin HEAD:main
+          git push origin "${{ steps.bump.outputs.next_version }}"
+
+      - name: Skip publish when there are no API changes
+        if: ${{ steps.diff.outputs.should_publish != 'true' }}
+        run: echo "No API changes detected. Skipping version bump and publish."
+
+      - name: Publish package
+        if: ${{ steps.diff.outputs.should_publish == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if elm publish; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 5 ]; then
+              exit 1
+            fi
+
+            sleep 15
+          done
