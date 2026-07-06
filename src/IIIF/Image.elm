@@ -531,6 +531,21 @@ staticImageUriFromComponents host path =
     Just (StaticImageUri { host = host, prefix = path })
 
 
+{-| Construct a `StaticImageUri` from a parsed `Url`.
+
+This is useful when a caller already knows that a URL should be treated as a
+plain static image, even if its path happens to resemble a IIIF Image API URL.
+
+    Url.fromString "https://example.org/iiif/2/abc/full/80,/0/default.jpg"
+        |> Maybe.map staticImageUriFromUrl
+
+    -- Just (StaticImageUri
+    --     { host = "https://example.org"
+    --     , prefix = "/iiif/2/abc/full/80,/0/default.jpg"
+    --     }
+    --    )
+
+-}
 staticImageUriFromUrl : Url -> ImageUri
 staticImageUriFromUrl url =
     let
