@@ -1,7 +1,7 @@
 module IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri, imageUriToInfoUri)
-import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder)
+import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder)
 import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..), stringToServiceType)
@@ -23,7 +23,7 @@ v3iiifManifestDecoder =
         |> optional "homepage" (maybe (list v3HomePageDecoder)) Nothing
         |> optional "logo" (maybe (v3ImageDecoder PrimaryImage)) Nothing
         |> optional "provider" (maybe (list v3ProviderDecoder)) Nothing
-        |> optional "thumbnail" (maybe (v3ImageDecoder PrimaryImage)) Nothing
+        |> optional "thumbnail" (thumbnailDecoder v3ThumbnailImageDecoder) Nothing
         |> optional "requiredStatement" (maybe labelValueDecoder) Nothing
 
 
@@ -99,7 +99,7 @@ v3CollectionItemManifestDecoder =
         |> optional "homepage" (maybe (list v3HomePageDecoder)) Nothing
         |> hardcoded Nothing
         |> hardcoded Nothing
-        |> optional "thumbnail" (maybe (v3ImageDecoder PrimaryImage)) Nothing
+        |> optional "thumbnail" (thumbnailDecoder v3ThumbnailImageDecoder) Nothing
         |> hardcoded Nothing
 
 
@@ -111,6 +111,7 @@ v3CanvasDecoder =
         |> required "width" (maybe int)
         |> required "height" (maybe int)
         |> required "items" (index 0 v3AnnotationPageDecoder)
+        |> optional "thumbnail" (thumbnailDecoder v3ThumbnailImageDecoder) Nothing
         |> optional "behavior" (maybe behaviourDecoder) Nothing
 
 
@@ -147,6 +148,15 @@ v3ImageDecoder imageType =
         |> custom v3ImageIdDecoder
         |> optional "label" (maybe v3LabelDecoder) Nothing
         |> hardcoded imageType
+        |> optional "service" v3ServiceTypeListDecoder []
+
+
+v3ThumbnailImageDecoder : Decoder Image
+v3ThumbnailImageDecoder =
+    succeed Image
+        |> custom v3ThumbnailImageIdDecoder
+        |> optional "label" (maybe v3LabelDecoder) Nothing
+        |> hardcoded PrimaryImage
         |> optional "service" v3ServiceTypeListDecoder []
 
 
@@ -318,6 +328,23 @@ v3ImageIdDecoderWithServicePresence maybeService =
         Nothing ->
             field "id" string
                 |> andThen convertStaticImageIdToImageUri
+
+
+v3ThumbnailImageIdDecoder : Decoder ImageUri
+v3ThumbnailImageIdDecoder =
+    maybe (field "service" value)
+        |> andThen v3ThumbnailImageIdDecoderWithServicePresence
+
+
+v3ThumbnailImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
+v3ThumbnailImageIdDecoderWithServicePresence maybeService =
+    case maybeService of
+        Just _ ->
+            v3ImageIdFromServiceDecoder
+
+        Nothing ->
+            field "id" string
+                |> andThen convertThumbnailImageIdToImageUri
 
 
 v3ResourceTypeDecoder : Decoder IIIFResource

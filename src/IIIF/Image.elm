@@ -3,6 +3,7 @@ module IIIF.Image exposing
     , ImageRotation(..), ImageQuality(..), ImageFormat(..)
     , thumbnailUrlFromInfo
     , createImageAddress, infoUriToImageUri, imageUriToInfoUri, imageUriFromComponents, infoUriFromComponents
+    , staticImageUriFromUrl
     , setImageUriSize, setImageUriRegion, imageServerToImageRequest
     , createInfoUri, createImageUri, createRegionComponent
     , createSizeComponent, createRotationComponent, createQualityComponent, createFormatComponent
@@ -39,6 +40,7 @@ component of `180,`, while one with `ExactWidthAndHeightSize (180, 250)` will ge
 # Creating Image API Urls
 
 @docs createImageAddress, infoUriToImageUri, imageUriToInfoUri, imageUriFromComponents, infoUriFromComponents
+@docs staticImageUriFromUrl
 @docs setImageUriSize, setImageUriRegion, imageServerToImageRequest
 @docs createInfoUri, createImageUri, createRegionComponent
 @docs createSizeComponent, createRotationComponent, createQualityComponent, createFormatComponent
@@ -448,9 +450,36 @@ possibleSuffixes =
 {-| Parse an `Url` into a IIIF image or info.json URI.
 -}
 parseImageUrl : Url -> Maybe ImageUri
-parseImageUrl { protocol, host, port_, path, query } =
+parseImageUrl url =
     let
-        protocolStr =
+        { address, path, pathComponents, pathWithQuery } =
+            decomposeUrl url
+
+        isImageApiUri =
+            List.any (\s -> String.endsWith s path) possibleSuffixes
+    in
+    if isImageApiUri then
+        imageUriFromComponents address pathComponents
+
+    else if String.endsWith "info.json" path then
+        infoUriFromComponents address pathComponents
+
+    else
+        staticImageUriFromComponents address pathWithQuery
+
+
+type alias DecomposedUrl =
+    { address : String
+    , path : String
+    , pathComponents : List String
+    , pathWithQuery : String
+    }
+
+
+decomposeUrl : Url -> DecomposedUrl
+decomposeUrl { protocol, host, port_, path, query } =
+    let
+        protocolString =
             case protocol of
                 Http ->
                     "http://"
@@ -458,33 +487,23 @@ parseImageUrl { protocol, host, port_, path, query } =
                 Https ->
                     "https://"
 
-        addr =
-            Maybe.map (\p -> protocolStr ++ host ++ ":" ++ String.fromInt p) port_
-                |> Maybe.withDefault (protocolStr ++ host)
+        address =
+            Maybe.map (\portNumber -> protocolString ++ host ++ ":" ++ String.fromInt portNumber) port_
+                |> Maybe.withDefault (protocolString ++ host)
 
-        splitPath =
-            String.split "/" path
+        pathWithQuery =
+            case query of
+                Just queryString ->
+                    path ++ "?" ++ queryString
 
-        isImageApiUri =
-            List.any (\s -> String.endsWith s path) possibleSuffixes
+                Nothing ->
+                    path
     in
-    if isImageApiUri then
-        imageUriFromComponents addr splitPath
-
-    else if String.endsWith "info.json" path then
-        infoUriFromComponents addr splitPath
-
-    else
-        let
-            pathWithQuery =
-                case query of
-                    Just queryString ->
-                        path ++ "?" ++ queryString
-
-                    Nothing ->
-                        path
-        in
-        staticImageUriFromComponents addr pathWithQuery
+    { address = address
+    , path = path
+    , pathComponents = String.split "/" path
+    , pathWithQuery = pathWithQuery
+    }
 
 
 {-| Construct a split path into an info.json URI. Useful if you have
@@ -510,6 +529,15 @@ infoUriFromComponents host pathComponents =
 staticImageUriFromComponents : String -> String -> Maybe ImageUri
 staticImageUriFromComponents host path =
     Just (StaticImageUri { host = host, prefix = path })
+
+
+staticImageUriFromUrl : Url -> ImageUri
+staticImageUriFromUrl url =
+    let
+        { address, pathWithQuery } =
+            decomposeUrl url
+    in
+    StaticImageUri { host = address, prefix = pathWithQuery }
 
 
 {-| Parse a split path into an image request URI. Like infoUriParser, this

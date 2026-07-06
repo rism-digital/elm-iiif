@@ -1,7 +1,7 @@
 module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri)
-import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, formatDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, requiredAt)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes, ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
@@ -25,7 +25,7 @@ v2iiifManifestDecoder =
         |> optional "logo" (maybe v2ImageDecoder) Nothing
         -- v2 manifests do not have a provider section.
         |> hardcoded Nothing
-        |> optional "thumbnail" (maybe v2ImageDecoder) Nothing
+        |> optional "thumbnail" (thumbnailDecoder v2ThumbnailImageDecoder) Nothing
         |> optional "attribution" (maybe v2RequiredStatement) Nothing
 
 
@@ -44,6 +44,7 @@ v2CanvasDecoder =
         |> optional "width" (maybe int) Nothing
         |> optional "height" (maybe int) Nothing
         |> optional "images" v2AnnotationListDecoder []
+        |> optional "thumbnail" (thumbnailDecoder v2ThumbnailImageDecoder) Nothing
         |> optional "viewingHint" (maybe viewingHintDecoder) Nothing
 
 
@@ -84,6 +85,15 @@ v2ImageDecoderVaryingType imgType =
         |> custom v2ImageServiceTypesDecoder
 
 
+v2ThumbnailImageDecoder : Decoder Image
+v2ThumbnailImageDecoder =
+    succeed Image
+        |> custom v2ThumbnailImageIdDecoder
+        |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
+        |> hardcoded PrimaryImage
+        |> custom v2ImageServiceTypesDecoder
+
+
 v2ChoiceObjectDecoder : Decoder (List Image)
 v2ChoiceObjectDecoder =
     map2 (::)
@@ -121,6 +131,22 @@ v2ImageServiceTypesDecoderWithServicePresence maybeService =
 
         Nothing ->
             succeed []
+
+
+v2ThumbnailImageIdDecoder : Decoder ImageUri
+v2ThumbnailImageIdDecoder =
+    maybe (field "service" value)
+        |> andThen v2ThumbnailImageIdDecoderWithServicePresence
+
+
+v2ThumbnailImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
+v2ThumbnailImageIdDecoderWithServicePresence maybeService =
+    case maybeService of
+        Just _ ->
+            requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri) (succeed identity)
+
+        Nothing ->
+            required "@id" (string |> andThen convertThumbnailImageIdToImageUri) (succeed identity)
 
 
 v2ServiceTypeDecoder : String -> List ServiceTypes
@@ -265,7 +291,7 @@ v2CollectionItemManifestDecoder =
         |> optional "rendering" (maybe v2HomePageListDecoder) Nothing
         |> hardcoded Nothing
         |> hardcoded Nothing
-        |> optional "thumbnail" (maybe v2ImageDecoder) Nothing
+        |> optional "thumbnail" (thumbnailDecoder v2ThumbnailImageDecoder) Nothing
         |> hardcoded Nothing
 
 

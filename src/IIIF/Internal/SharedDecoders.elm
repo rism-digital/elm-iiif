@@ -1,12 +1,13 @@
-module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, viewingDirectionDecoder, viewingHintDecoder)
+module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 
-import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri, parseImageAddress)
+import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri, parseImageAddress, staticImageUriFromUrl)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
 import IIIF.Internal.Contexts exposing (iiifV2ImageContextString, iiifV3ImageContextString)
 import IIIF.Internal.Utilities exposing (optional, required)
 import IIIF.Presentation exposing (MediaFormats, ResourceTypes, ViewingDirection, ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode exposing (Decoder, andThen, fail, int, list, map, maybe, oneOf, string, succeed)
+import Url
 
 
 viewingDirectionDecoder : Decoder ViewingDirection
@@ -51,6 +52,16 @@ convertStaticImageIdToImageUri idValue =
             fail "Could not decode static image Url"
 
 
+convertThumbnailImageIdToImageUri : String -> Decoder ImageUri
+convertThumbnailImageIdToImageUri idValue =
+    case Url.fromString idValue of
+        Just url ->
+            succeed (staticImageUriFromUrl url)
+
+        Nothing ->
+            fail "Could not decode static image Url"
+
+
 formatDecoder : Decoder MediaFormats
 formatDecoder =
     string
@@ -61,6 +72,14 @@ resourceTypeDecoder : Decoder ResourceTypes
 resourceTypeDecoder =
     string
         |> map resourceTypeFromString
+
+
+thumbnailDecoder : Decoder a -> Decoder (Maybe a)
+thumbnailDecoder imageDecoder =
+    oneOf
+        [ list imageDecoder |> map List.head
+        , imageDecoder |> map Just
+        ]
 
 
 widthHeightDecoder : Decoder WidthHeight

@@ -43,6 +43,51 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "manifestDecoder parses v3 canvas thumbnail without an Image API service"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v3ManifestJsonCanvasPlainThumbnail of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen .thumbnail of
+                            Just image ->
+                                Expect.equal True
+                                    (version
+                                        == IIIFV3
+                                        && createImageAddress image.id
+                                        == "https://example.org/thumb/plain.jpg"
+                                        && List.isEmpty image.service
+                                    )
+
+                            Nothing ->
+                                Expect.fail "Expected a thumbnail on the first canvas"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder treats v3 no-service IIIF-looking canvas thumbnail as static"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v3ManifestJsonCanvasIiifLookingThumbnail of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen .thumbnail of
+                            Just image ->
+                                case image.id of
+                                    StaticImageUri _ ->
+                                        Expect.equal True
+                                            (version
+                                                == IIIFV3
+                                                && createImageAddress image.id
+                                                == "https://example.org/iiif/2/abc/full/80,/0/default.jpg"
+                                                && List.isEmpty image.service
+                                            )
+
+                                    _ ->
+                                        Expect.fail "Expected StaticImageUri for no-service thumbnail"
+
+                            Nothing ->
+                                Expect.fail "Expected a thumbnail on the first canvas"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "manifestDecoder parses minimal v2 manifest"
             (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJson of
@@ -68,6 +113,51 @@ tests =
 
                             Nothing ->
                                 Expect.fail "Expected one image on the first canvas"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder parses v2 canvas thumbnail without an Image API service"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v2ManifestJsonCanvasPlainThumbnail of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen .thumbnail of
+                            Just image ->
+                                Expect.equal True
+                                    (version
+                                        == IIIFV2
+                                        && createImageAddress image.id
+                                        == "https://example.org/thumb/plain.jpg"
+                                        && List.isEmpty image.service
+                                    )
+
+                            Nothing ->
+                                Expect.fail "Expected a thumbnail on the first canvas"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder treats v2 no-service IIIF-looking canvas thumbnail as static"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v2ManifestJsonCanvasIiifLookingThumbnail of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen .thumbnail of
+                            Just image ->
+                                case image.id of
+                                    StaticImageUri _ ->
+                                        Expect.equal True
+                                            (version
+                                                == IIIFV2
+                                                && createImageAddress image.id
+                                                == "https://example.org/iiif/2/abc/full/80,/0/default.jpg"
+                                                && List.isEmpty image.service
+                                            )
+
+                                    _ ->
+                                        Expect.fail "Expected StaticImageUri for no-service thumbnail"
+
+                            Nothing ->
+                                Expect.fail "Expected a thumbnail on the first canvas"
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -250,7 +340,28 @@ tests =
                                 == "https://iiif.bodleian.ox.ac.uk/iiif/manifest/40824c0f-e1d5-4bc6-b051-aa66b0b7e1cc.json"
                                 && List.length manifest.canvases
                                 == 1
+                                && Maybe.map (createImageAddress << .id) manifest.thumbnail
+                                == Just "https://iiif.bodleian.ox.ac.uk/iiif/image/9cd10055-3c91-47f6-a3e9-04e5d8b199db/info.json"
                             )
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder treats v3 no-service IIIF-looking manifest thumbnail as static"
+            (\_ ->
+                case Decode.decodeString manifestDecoder v3ManifestJsonIiifLookingThumbnail of
+                    Ok (IIIFManifest version manifest) ->
+                        case manifest.thumbnail of
+                            Just image ->
+                                case image.id of
+                                    StaticImageUri _ ->
+                                        Expect.equal "https://example.org/iiif/2/abc/full/80,/0/default.jpg" (createImageAddress image.id)
+
+                                    _ ->
+                                        Expect.fail "Expected StaticImageUri for no-service manifest thumbnail"
+
+                            Nothing ->
+                                Expect.fail "Expected manifest thumbnail"
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -289,6 +400,21 @@ v3ManifestJsonPlainImage =
     "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}}]}]}]}"
 
 
+v3ManifestJsonCanvasPlainThumbnail : String
+v3ManifestJsonCanvasPlainThumbnail =
+    "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"thumbnail\":[{\"id\":\"https://example.org/thumb/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}],\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}}]}]}]}"
+
+
+v3ManifestJsonCanvasIiifLookingThumbnail : String
+v3ManifestJsonCanvasIiifLookingThumbnail =
+    "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"thumbnail\":[{\"id\":\"https://example.org/iiif/2/abc/full/80,/0/default.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}],\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}}]}]}]}"
+
+
+v3ManifestJsonIiifLookingThumbnail : String
+v3ManifestJsonIiifLookingThumbnail =
+    "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"thumbnail\":[{\"id\":\"https://example.org/iiif/2/abc/full/80,/0/default.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}],\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"format\":\"image/jpeg\"}}]}]}]}"
+
+
 v3ManifestJsonMalformedService : String
 v3ManifestJsonMalformedService =
     "{\"@context\":\"http://iiif.io/api/presentation/3/context.json\",\"id\":\"https://example.org/manifest\",\"label\":{\"en\":[\"V3 Manifest\"]},\"items\":[{\"id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"items\":[{\"items\":[{\"body\":{\"id\":\"https://example.org/image/plain.jpg\",\"type\":\"Image\",\"service\":{\"type\":\"ImageService3\"}}}]}]}]}"
@@ -302,6 +428,16 @@ v2ManifestJson =
 v2ManifestJsonPlainImage : String
 v2ManifestJsonPlainImage =
     "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"@id\":\"https://example.org/image/plain.jpg\",\"@type\":\"dctypes:Image\",\"format\":\"image/jpeg\"}}]}]}]}"
+
+
+v2ManifestJsonCanvasPlainThumbnail : String
+v2ManifestJsonCanvasPlainThumbnail =
+    "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"thumbnail\":{\"@id\":\"https://example.org/thumb/plain.jpg\",\"@type\":\"dctypes:Image\",\"format\":\"image/jpeg\"},\"images\":[{\"resource\":{\"@id\":\"https://example.org/image/plain.jpg\",\"@type\":\"dctypes:Image\",\"format\":\"image/jpeg\"}}]}]}]}"
+
+
+v2ManifestJsonCanvasIiifLookingThumbnail : String
+v2ManifestJsonCanvasIiifLookingThumbnail =
+    "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"thumbnail\":{\"@id\":\"https://example.org/iiif/2/abc/full/80,/0/default.jpg\",\"@type\":\"dctypes:Image\",\"format\":\"image/jpeg\"},\"images\":[{\"resource\":{\"@id\":\"https://example.org/image/plain.jpg\",\"@type\":\"dctypes:Image\",\"format\":\"image/jpeg\"}}]}]}]}"
 
 
 v2ManifestJsonCanvasWithoutImages : String
