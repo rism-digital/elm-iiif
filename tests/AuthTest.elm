@@ -115,6 +115,15 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "accessTokenDecoder accepts the HTTPS Auth 2 context"
+            (\_ ->
+                case Decode.decodeString accessTokenDecoder (String.replace "http://iiif.io" "https://iiif.io" tokenResponse) of
+                    Ok token ->
+                        Expect.equal "abc123" token.accessToken
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "tokenErrorDecoder parses Auth 2 token errors"
             (\_ ->
                 case Decode.decodeString tokenErrorDecoder tokenErrorResponse of

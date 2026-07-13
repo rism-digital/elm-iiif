@@ -47,6 +47,7 @@ will hold a decoded identifier for the specific IIIF version.
 -}
 
 import IIIF.Image exposing (ImageUri)
+import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, iiifV3ImageContextString)
 import IIIF.Internal.Utilities exposing (find)
 import IIIF.Language exposing (LabelValue, Language(..), LanguageMap, extractLabelFromLanguageMap)
 import IIIF.Version exposing (IIIFVersion)
@@ -634,36 +635,37 @@ stringToBehavior behavior =
 -}
 stringToServiceType : String -> ServiceTypes
 stringToServiceType val =
-    case val of
-        "AuthLogoutService1" ->
-            AuthLogoutService1
+    if contextMatches iiifV2ImageContextString val then
+        ImageService2
 
-        "AuthTokenService1" ->
-            AuthTokenService1
+    else if contextMatches iiifV3ImageContextString val then
+        ImageService3
 
-        "AutoCompleteService1" ->
-            AutoCompleteService1
+    else
+        case val of
+            "AuthLogoutService1" ->
+                AuthLogoutService1
 
-        "ImageService1" ->
-            ImageService1
+            "AuthTokenService1" ->
+                AuthTokenService1
 
-        "ImageService2" ->
-            ImageService2
+            "AutoCompleteService1" ->
+                AutoCompleteService1
 
-        "ImageService3" ->
-            ImageService3
+            "ImageService1" ->
+                ImageService1
 
-        "SearchService1" ->
-            SearchService1
+            "ImageService2" ->
+                ImageService2
 
-        "http://iiif.io/api/image/2/context.json" ->
-            ImageService2
+            "ImageService3" ->
+                ImageService3
 
-        "http://iiif.io/api/image/3/context.json" ->
-            ImageService3
+            "SearchService1" ->
+                SearchService1
 
-        _ ->
-            UnknownService
+            _ ->
+                UnknownService
 
 
 {-| Convert a string to a media format identifier.

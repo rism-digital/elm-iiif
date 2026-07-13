@@ -1,6 +1,6 @@
 module IIIF.Internal.CoreDecoders exposing (contextListDecoder, contextStringDecoder, resourceContextListDecoder, resourceContextStringDecoder)
 
-import IIIF.Internal.Contexts exposing (iiifV2PresentationContextString, iiifV3PresentationContextString)
+import IIIF.Internal.Contexts exposing (contextMatches, iiifV2PresentationContextString, iiifV3PresentationContextString)
 import IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 import IIIF.Internal.V3PresentationDecoders exposing (v3ResourceTypeDecoder, v3iiifManifestDecoder)
 import IIIF.Presentation exposing (IIIFManifest(..), IIIFResource)
@@ -10,10 +10,10 @@ import Json.Decode exposing (Decoder, fail, map)
 
 contextStringDecoder : String -> Decoder IIIFManifest
 contextStringDecoder contextValue =
-    if contextValue == iiifV3PresentationContextString then
+    if contextMatches iiifV3PresentationContextString contextValue then
         map (IIIFManifest IIIFV3) v3iiifManifestDecoder
 
-    else if contextValue == iiifV2PresentationContextString then
+    else if contextMatches iiifV2PresentationContextString contextValue then
         map (IIIFManifest IIIFV2) v2iiifManifestDecoder
 
     else
@@ -22,10 +22,10 @@ contextStringDecoder contextValue =
 
 contextListDecoder : List String -> Decoder IIIFManifest
 contextListDecoder contextValues =
-    if List.member iiifV3PresentationContextString contextValues then
+    if List.any (contextMatches iiifV3PresentationContextString) contextValues then
         map (IIIFManifest IIIFV3) v3iiifManifestDecoder
 
-    else if List.member iiifV2PresentationContextString contextValues then
+    else if List.any (contextMatches iiifV2PresentationContextString) contextValues then
         map (IIIFManifest IIIFV2) v2iiifManifestDecoder
 
     else
@@ -34,10 +34,10 @@ contextListDecoder contextValues =
 
 resourceContextStringDecoder : String -> Decoder IIIFResource
 resourceContextStringDecoder contextValue =
-    if contextValue == iiifV3PresentationContextString then
+    if contextMatches iiifV3PresentationContextString contextValue then
         v3ResourceTypeDecoder
 
-    else if contextValue == iiifV2PresentationContextString then
+    else if contextMatches iiifV2PresentationContextString contextValue then
         v2ResourceTypeDecoder
 
     else
@@ -46,10 +46,10 @@ resourceContextStringDecoder contextValue =
 
 resourceContextListDecoder : List String -> Decoder IIIFResource
 resourceContextListDecoder contextValues =
-    if List.member iiifV3PresentationContextString contextValues then
+    if List.any (contextMatches iiifV3PresentationContextString) contextValues then
         v3ResourceTypeDecoder
 
-    else if List.member iiifV2PresentationContextString contextValues then
+    else if List.any (contextMatches iiifV2PresentationContextString) contextValues then
         v2ResourceTypeDecoder
 
     else

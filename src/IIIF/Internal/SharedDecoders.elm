@@ -2,7 +2,7 @@ module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdTo
 
 import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri, parseImageAddress, staticImageUriFromUrl)
 import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
-import IIIF.Internal.Contexts exposing (iiifV2ImageContextString, iiifV3ImageContextString)
+import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, iiifV3ImageContextString)
 import IIIF.Internal.Utilities exposing (optional, required)
 import IIIF.Presentation exposing (MediaFormats, ResourceTypes, ViewingDirection, ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
 import IIIF.Version exposing (IIIFVersion(..))
@@ -109,10 +109,10 @@ iiifInfoDecoderWith idFieldName =
 
 imageContextStringDecoder : String -> Decoder IIIFInfo
 imageContextStringDecoder contextValue =
-    if contextValue == iiifV3ImageContextString then
+    if contextMatches iiifV3ImageContextString contextValue then
         map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
 
-    else if contextValue == iiifV2ImageContextString then
+    else if contextMatches iiifV2ImageContextString contextValue then
         map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
 
     else
@@ -121,10 +121,10 @@ imageContextStringDecoder contextValue =
 
 imageContextListDecoder : List String -> Decoder IIIFInfo
 imageContextListDecoder contextValues =
-    if List.member iiifV3ImageContextString contextValues then
+    if List.any (contextMatches iiifV3ImageContextString) contextValues then
         map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
 
-    else if List.member iiifV2ImageContextString contextValues then
+    else if List.any (contextMatches iiifV2ImageContextString) contextValues then
         map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
 
     else

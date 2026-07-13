@@ -16,6 +16,7 @@ module IIIF.Auth exposing
 
 -}
 
+import IIIF.Internal.Contexts exposing (contextMatches)
 import IIIF.Internal.Utilities exposing (custom, optional, required)
 import IIIF.Language exposing (LanguageMap, languageMapLabelDecoder)
 import Json.Decode as Decode exposing (Decoder, Value, andThen, fail, field, int, list, map, map2, oneOf, string, succeed, value)
@@ -155,7 +156,15 @@ exact expected decoder =
 
 authContextDecoder : Decoder String
 authContextDecoder =
-    exact authContext contextDecoder
+    contextDecoder
+        |> andThen
+            (\actual ->
+                if contextMatches authContext actual then
+                    succeed actual
+
+                else
+                    fail ("Expected " ++ authContext ++ " but got " ++ actual)
+            )
 
 
 authTypeDecoder : String -> Decoder String

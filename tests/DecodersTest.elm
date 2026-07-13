@@ -23,6 +23,15 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "manifestDecoder accepts HTTPS v3 presentation contexts"
+            (\_ ->
+                case Decode.decodeString manifestDecoder (httpsIiifContexts v3ManifestJson) of
+                    Ok (IIIFManifest version _) ->
+                        Expect.equal IIIFV3 version
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "manifestDecoder parses v3 image body without an Image API service"
             (\_ ->
                 case Decode.decodeString manifestDecoder v3ManifestJsonPlainImage of
@@ -93,6 +102,20 @@ tests =
                 case Decode.decodeString manifestDecoder v2ManifestJson of
                     Ok (IIIFManifest version manifest) ->
                         Expect.equal True (version == IIIFV2 && manifest.id == "https://example.org/manifest")
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder accepts HTTPS v2 presentation and embedded image contexts"
+            (\_ ->
+                case Decode.decodeString manifestDecoder (httpsIiifContexts v2ManifestJson) of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                            Just image ->
+                                Expect.equal ( IIIFV2, [ IIIF.Presentation.ImageService2 ] ) ( version, image.service )
+
+                            Nothing ->
+                                Expect.fail "Expected one image"
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -243,6 +266,18 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "resourceDecoder accepts HTTPS contexts"
+            (\_ ->
+                case Decode.decodeString resourceDecoder (httpsIiifContexts v3ResourceJson) of
+                    Ok (ResourceManifest (IIIFManifest version _)) ->
+                        Expect.equal IIIFV3 version
+
+                    Ok _ ->
+                        Expect.fail "Expected a v3 manifest resource"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "resourceDecoder parses v2 manifest resource"
             (\_ ->
                 case Decode.decodeString resourceDecoder v2ResourceJson of
@@ -264,11 +299,29 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "infoJsonDecoder accepts HTTPS v3 image contexts"
+            (\_ ->
+                case Decode.decodeString infoJsonDecoder (httpsIiifContexts v3InfoJson) of
+                    Ok (IIIFInfo version _) ->
+                        Expect.equal IIIFV3 version
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "infoJsonDecoder parses v2 image info"
             (\_ ->
                 case Decode.decodeString infoJsonDecoder v2InfoJson of
                     Ok (IIIFInfo version info) ->
                         Expect.equal True (version == IIIFV2 && info.width == 300 && info.height == 200)
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder accepts HTTPS v2 image contexts"
+            (\_ ->
+                case Decode.decodeString infoJsonDecoder (httpsIiifContexts v2InfoJson) of
+                    Ok (IIIFInfo version _) ->
+                        Expect.equal IIIFV2 version
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -392,7 +445,21 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "manifestDecoder still rejects unknown context hosts"
+            (\_ ->
+                case Decode.decodeString manifestDecoder (String.replace "iiif.io" "example.com" v3ManifestJson) of
+                    Ok _ ->
+                        Expect.fail "Expected an unknown context host to fail"
+
+                    Err _ ->
+                        Expect.pass
+            )
         ]
+
+
+httpsIiifContexts : String -> String
+httpsIiifContexts =
+    String.replace "http://iiif.io/api/" "https://iiif.io/api/"
 
 
 v3ManifestJson : String

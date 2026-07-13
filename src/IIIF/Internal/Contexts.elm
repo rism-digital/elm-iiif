@@ -1,7 +1,12 @@
-module IIIF.Internal.Contexts exposing (iiifV2ImageContextString, iiifV2PresentationContextString, iiifV3ImageContextString, iiifV3PresentationContextString)
+module IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, iiifV2PresentationContextString, iiifV3ImageContextString, iiifV3PresentationContextString)
 
 {-| Constants representing known IIIF Context Values
 -}
+
+
+contextMatches : String -> String -> Bool
+contextMatches expected actual =
+    actual == expected || actual == String.replace "http://" "https://" expected
 
 
 {-| IIIF Presentation v3 context URL. This will always return

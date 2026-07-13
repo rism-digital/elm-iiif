@@ -1,7 +1,7 @@
 module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri)
-import IIIF.Internal.Contexts exposing (iiifV2ImageContextString)
+import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString)
 import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, requiredAt)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
@@ -203,7 +203,7 @@ v2ServiceTypeObjectDecoder =
         , field "@context" string
             |> map
                 (\context ->
-                    if context == iiifV2ImageContextString then
+                    if contextMatches iiifV2ImageContextString context then
                         stringToServiceType "ImageService2"
 
                     else
