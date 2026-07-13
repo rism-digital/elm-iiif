@@ -1,12 +1,32 @@
 module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri)
+import IIIF.Internal.Contexts exposing (iiifV2ImageContextString)
 import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, requiredAt)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes, ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode as Decode exposing (Decoder, Value, andThen, at, fail, field, int, lazy, list, map, map2, maybe, oneOf, string, succeed, value)
+import Json.Decode
+    exposing
+        ( Decoder
+        , Value
+        , andThen
+        , at
+        , fail
+        , field
+        , index
+        , int
+        , lazy
+        , list
+        , map
+        , map2
+        , maybe
+        , oneOf
+        , string
+        , succeed
+        , value
+        )
 
 
 v2iiifManifestDecoder : Decoder Manifest
@@ -33,7 +53,7 @@ v2SequencesDecoder : Decoder (List Canvas)
 v2SequencesDecoder =
     list v2CanvasDecoder
         |> at [ "canvases" ]
-        |> Decode.index 0
+        |> index 0
 
 
 v2CanvasDecoder : Decoder Canvas
@@ -74,6 +94,7 @@ v2ImageDecoder =
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded PrimaryImage
         |> custom v2ImageServiceTypesDecoder
+        |> custom v2ImageServiceObjectsDecoder
 
 
 v2ImageDecoderVaryingType : ImageType -> Decoder Image
@@ -83,6 +104,7 @@ v2ImageDecoderVaryingType imgType =
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded imgType
         |> custom v2ImageServiceTypesDecoder
+        |> custom v2ImageServiceObjectsDecoder
 
 
 v2ThumbnailImageDecoder : Decoder Image
@@ -92,6 +114,7 @@ v2ThumbnailImageDecoder =
         |> optional "label" (maybe v2LanguageMapLabelDecoder) Nothing
         |> hardcoded PrimaryImage
         |> custom v2ImageServiceTypesDecoder
+        |> custom v2ImageServiceObjectsDecoder
 
 
 v2ChoiceObjectDecoder : Decoder (List Image)
@@ -103,55 +126,99 @@ v2ChoiceObjectDecoder =
 
 v2ImageIdDecoder : Decoder ImageUri
 v2ImageIdDecoder =
-    maybe (field "service" value)
-        |> andThen v2ImageIdDecoderWithServicePresence
-
-
-v2ImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
-v2ImageIdDecoderWithServicePresence maybeService =
-    case maybeService of
-        Just _ ->
-            requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri) (succeed identity)
-
-        Nothing ->
-            required "@id" (string |> andThen convertStaticImageIdToImageUri) (succeed identity)
+    oneOf
+        [ v2ImageIdFromServiceDecoder
+        , field "@id" string |> andThen convertStaticImageIdToImageUri
+        ]
 
 
 v2ImageServiceTypesDecoder : Decoder (List ServiceTypes)
 v2ImageServiceTypesDecoder =
-    maybe (field "service" value)
-        |> andThen v2ImageServiceTypesDecoderWithServicePresence
+    oneOf
+        [ field "service"
+            (oneOf
+                [ list (maybe v2ServiceTypeObjectDecoder) |> map (List.filterMap identity)
+                , v2ServiceTypeObjectDecoder |> map List.singleton
+                ]
+            )
+        , succeed []
+        ]
 
 
-v2ImageServiceTypesDecoderWithServicePresence : Maybe Value -> Decoder (List ServiceTypes)
-v2ImageServiceTypesDecoderWithServicePresence maybeService =
-    case maybeService of
-        Just _ ->
-            requiredAt [ "service", "@context" ] (string |> map v2ServiceTypeDecoder) (succeed identity)
-
-        Nothing ->
-            succeed []
+v2ImageServiceObjectsDecoder : Decoder (List Value)
+v2ImageServiceObjectsDecoder =
+    oneOf
+        [ field "service" (list value)
+        , field "service" (value |> map List.singleton)
+        , succeed []
+        ]
 
 
 v2ThumbnailImageIdDecoder : Decoder ImageUri
 v2ThumbnailImageIdDecoder =
-    maybe (field "service" value)
-        |> andThen v2ThumbnailImageIdDecoderWithServicePresence
+    oneOf
+        [ v2ImageIdFromServiceDecoder
+        , field "@id" string |> andThen convertThumbnailImageIdToImageUri
+        ]
 
 
-v2ThumbnailImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
-v2ThumbnailImageIdDecoderWithServicePresence maybeService =
-    case maybeService of
-        Just _ ->
-            requiredAt [ "service", "@id" ] (string |> andThen convertImageIdToImageUri) (succeed identity)
+v2ImageIdFromServiceDecoder : Decoder ImageUri
+v2ImageIdFromServiceDecoder =
+    field "service"
+        (oneOf
+            [ list (maybe v2ImageServiceIdDecoder)
+                |> map (List.filterMap identity >> List.head)
+            , v2ImageServiceIdDecoder |> map Just
+            ]
+        )
+        |> andThen
+            (\maybeId ->
+                case maybeId of
+                    Just id ->
+                        convertImageIdToImageUri id
 
-        Nothing ->
-            required "@id" (string |> andThen convertThumbnailImageIdToImageUri) (succeed identity)
+                    Nothing ->
+                        fail "No Image API service ID found"
+            )
 
 
-v2ServiceTypeDecoder : String -> List ServiceTypes
-v2ServiceTypeDecoder stype =
-    [ stringToServiceType stype ]
+v2ImageServiceIdDecoder : Decoder String
+v2ImageServiceIdDecoder =
+    v2ServiceTypeObjectDecoder
+        |> andThen
+            (\serviceType ->
+                if isImageService serviceType then
+                    field "@id" string
+
+                else
+                    fail "Not an Image API service"
+            )
+
+
+v2ServiceTypeObjectDecoder : Decoder ServiceTypes
+v2ServiceTypeObjectDecoder =
+    oneOf
+        [ field "@type" string |> map stringToServiceType
+        , field "type" string |> map stringToServiceType
+        , field "@context" string
+            |> map
+                (\context ->
+                    if context == iiifV2ImageContextString then
+                        stringToServiceType "ImageService2"
+
+                    else
+                        stringToServiceType context
+                )
+        ]
+
+
+isImageService : ServiceTypes -> Bool
+isImageService serviceType =
+    List.member serviceType
+        [ stringToServiceType "ImageService1"
+        , stringToServiceType "ImageService2"
+        , stringToServiceType "ImageService3"
+        ]
 
 
 v2RangeDecoder : Decoder Range

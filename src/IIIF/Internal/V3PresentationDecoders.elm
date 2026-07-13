@@ -6,7 +6,7 @@ import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, requ
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode as Decode exposing (Decoder, Value, andThen, at, fail, field, index, int, list, map, map3, maybe, oneOf, string, succeed, value)
+import Json.Decode exposing (Decoder, Value, andThen, at, fail, field, index, int, lazy, list, map, map3, maybe, oneOf, string, succeed, value)
 
 
 v3iiifManifestDecoder : Decoder Manifest
@@ -52,7 +52,7 @@ v3CollectionItemsDecoder =
             ]
         )
         (oneOf
-            [ field "collections" (list (map NestedCollection (Decode.lazy (\_ -> v3iiifCollectionDecoder))))
+            [ field "collections" (list (map NestedCollection (lazy (\_ -> v3iiifCollectionDecoder))))
             , succeed []
             ]
         )
@@ -73,7 +73,7 @@ v3CollectionItemFromType : String -> Decoder CollectionItem
 v3CollectionItemFromType itemType =
     case itemType of
         "Collection" ->
-            map NestedCollection (Decode.lazy (\_ -> v3iiifCollectionDecoder))
+            map NestedCollection (lazy (\_ -> v3iiifCollectionDecoder))
 
         "Manifest" ->
             map ManifestItem v3CollectionItemManifestDecoder
@@ -149,6 +149,7 @@ v3ImageDecoder imageType =
         |> optional "label" (maybe v3LabelDecoder) Nothing
         |> hardcoded imageType
         |> optional "service" v3ServiceTypeListDecoder []
+        |> optional "service" v3ServiceObjectValueListDecoder []
 
 
 v3ThumbnailImageDecoder : Decoder Image
@@ -158,6 +159,7 @@ v3ThumbnailImageDecoder =
         |> optional "label" (maybe v3LabelDecoder) Nothing
         |> hardcoded PrimaryImage
         |> optional "service" v3ServiceTypeListDecoder []
+        |> optional "service" v3ServiceObjectValueListDecoder []
 
 
 v3ChoiceBodyDecoder : Decoder (List Image)
@@ -189,6 +191,14 @@ v3ServiceTypeListDecoder =
     oneOf
         [ list v3ServiceTypeDecoder
         , v3ServiceTypeDecoder |> map List.singleton
+        ]
+
+
+v3ServiceObjectValueListDecoder : Decoder (List Value)
+v3ServiceObjectValueListDecoder =
+    oneOf
+        [ list value
+        , value |> map List.singleton
         ]
 
 
@@ -289,13 +299,13 @@ v3ServiceObjectListDecoder =
 
 selectServiceId : List ServiceObject -> Maybe String
 selectServiceId services =
-    case find (\s -> s.serviceType == ImageService3) services of
-        Just { id } ->
-            Just id
-
-        Nothing ->
-            List.head services
-                |> Maybe.map .id
+    find
+        (\service ->
+            List.member service.serviceType
+                [ ImageService1, ImageService2, ImageService3 ]
+        )
+        services
+        |> Maybe.map .id
 
 
 v3ImageIdFromServiceDecoder : Decoder ImageUri
@@ -315,36 +325,18 @@ v3ImageIdFromServiceDecoder =
 
 v3ImageIdDecoder : Decoder ImageUri
 v3ImageIdDecoder =
-    maybe (field "service" value)
-        |> andThen v3ImageIdDecoderWithServicePresence
-
-
-v3ImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
-v3ImageIdDecoderWithServicePresence maybeService =
-    case maybeService of
-        Just _ ->
-            v3ImageIdFromServiceDecoder
-
-        Nothing ->
-            field "id" string
-                |> andThen convertStaticImageIdToImageUri
+    oneOf
+        [ v3ImageIdFromServiceDecoder
+        , field "id" string |> andThen convertStaticImageIdToImageUri
+        ]
 
 
 v3ThumbnailImageIdDecoder : Decoder ImageUri
 v3ThumbnailImageIdDecoder =
-    maybe (field "service" value)
-        |> andThen v3ThumbnailImageIdDecoderWithServicePresence
-
-
-v3ThumbnailImageIdDecoderWithServicePresence : Maybe Value -> Decoder ImageUri
-v3ThumbnailImageIdDecoderWithServicePresence maybeService =
-    case maybeService of
-        Just _ ->
-            v3ImageIdFromServiceDecoder
-
-        Nothing ->
-            field "id" string
-                |> andThen convertThumbnailImageIdToImageUri
+    oneOf
+        [ v3ImageIdFromServiceDecoder
+        , field "id" string |> andThen convertThumbnailImageIdToImageUri
+        ]
 
 
 v3ResourceTypeDecoder : Decoder IIIFResource

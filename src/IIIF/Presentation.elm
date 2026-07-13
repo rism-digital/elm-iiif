@@ -50,6 +50,7 @@ import IIIF.Image exposing (ImageUri)
 import IIIF.Internal.Utilities exposing (find)
 import IIIF.Language exposing (LabelValue, Language(..), LanguageMap, extractLabelFromLanguageMap)
 import IIIF.Version exposing (IIIFVersion)
+import Json.Decode exposing (Value)
 
 
 {-| The core manifest record. This record type normalizes the differences between
@@ -133,6 +134,7 @@ type alias Image =
     , label : Maybe LanguageMap
     , imageType : ImageType
     , service : List ServiceTypes
+    , serviceObjects : List Value
     }
 
 

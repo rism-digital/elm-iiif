@@ -350,7 +350,7 @@ tests =
         , test "manifestDecoder treats v3 no-service IIIF-looking manifest thumbnail as static"
             (\_ ->
                 case Decode.decodeString manifestDecoder v3ManifestJsonIiifLookingThumbnail of
-                    Ok (IIIFManifest version manifest) ->
+                    Ok (IIIFManifest _ manifest) ->
                         case manifest.thumbnail of
                             Just image ->
                                 case image.id of
@@ -378,14 +378,19 @@ tests =
                     Nothing ->
                         Expect.fail "Expected static image url to parse"
             )
-        , test "manifestDecoder rejects malformed v3 image services"
+        , test "manifestDecoder preserves malformed services without losing a valid static image"
             (\_ ->
                 case Decode.decodeString manifestDecoder v3ManifestJsonMalformedService of
-                    Ok _ ->
-                        Expect.fail "Expected malformed service to fail decoding"
+                    Ok (IIIFManifest _ manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                            Just image ->
+                                Expect.equal ( 1, 1 ) ( List.length image.service, List.length image.serviceObjects )
 
-                    Err _ ->
-                        Expect.pass
+                            Nothing ->
+                                Expect.fail "Expected one image"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
             )
         ]
 

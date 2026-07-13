@@ -41,17 +41,6 @@ requestManifest responseMsg acceptHeaders manifest =
     request acceptHeaders (Http.expectJson responseMsg manifestDecoder) manifest
 
 
-{-| Request a IIIF resource (manifest or collection) by URL.
--}
-requestResource :
-    (Result Http.Error IIIFResource -> msg)
-    -> List String
-    -> String
-    -> Cmd msg
-requestResource responseMsg acceptHeaders url =
-    request acceptHeaders (Http.expectJson responseMsg resourceDecoder) url
-
-
 {-| Request a IIIF info.json response by URL.
 -}
 requestInfo :
@@ -61,6 +50,17 @@ requestInfo :
     -> Cmd msg
 requestInfo responseMsg acceptHeaders url =
     request acceptHeaders (Http.expectJson responseMsg infoJsonDecoder) url
+
+
+{-| Request a IIIF resource (manifest or collection) by URL.
+-}
+requestResource :
+    (Result Http.Error IIIFResource -> msg)
+    -> List String
+    -> String
+    -> Cmd msg
+requestResource responseMsg acceptHeaders url =
+    request acceptHeaders (Http.expectJson responseMsg resourceDecoder) url
 
 
 {-| The IIIF v2 Presentation Context String. Useful for detecting a IIIF v2 Manifest
