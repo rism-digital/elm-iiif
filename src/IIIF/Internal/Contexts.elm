@@ -6,6 +6,8 @@ module IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString
 
 contextMatches : String -> String -> Bool
 contextMatches expected actual =
+    -- Some manifests use the HTTPS version of the context string which is not compatible with the spec
+    -- but we can also handle that since it's mostly harmless.
     actual == expected || actual == String.replace "http://" "https://" expected
 
 

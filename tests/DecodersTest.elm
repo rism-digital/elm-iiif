@@ -3,7 +3,7 @@ module DecodersTest exposing (tests)
 import Expect
 import IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
 import IIIF.Image exposing (ImageUri(..), createImageAddress, parseImageAddress)
-import IIIF.ImageInfo exposing (IIIFInfo(..))
+import IIIF.ImageInfo exposing (ComplianceLevel(..), IIIFInfo(..))
 import IIIF.Language exposing (Language(..), extractLabelFromLanguageMap)
 import IIIF.Presentation exposing (IIIFManifest(..), IIIFResource(..))
 import IIIF.Version exposing (IIIFVersion(..))
@@ -36,7 +36,7 @@ tests =
             (\_ ->
                 case Decode.decodeString manifestDecoder v3ManifestJsonPlainImage of
                     Ok (IIIFManifest version manifest) ->
-                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                        case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
                             Just image ->
                                 Expect.equal True
                                     (version
@@ -110,7 +110,7 @@ tests =
             (\_ ->
                 case Decode.decodeString manifestDecoder (httpsIiifContexts v2ManifestJson) of
                     Ok (IIIFManifest version manifest) ->
-                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                        case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
                             Just image ->
                                 Expect.equal ( IIIFV2, [ IIIF.Presentation.ImageService2 ] ) ( version, image.service )
 
@@ -124,7 +124,7 @@ tests =
             (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJsonPlainImage of
                     Ok (IIIFManifest version manifest) ->
-                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                        case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
                             Just image ->
                                 Expect.equal True
                                     (version
@@ -294,7 +294,7 @@ tests =
             (\_ ->
                 case Decode.decodeString infoJsonDecoder v3InfoJson of
                     Ok (IIIFInfo version info) ->
-                        Expect.equal True (version == IIIFV3 && info.width == 640 && info.height == 480)
+                        Expect.equal True (version == IIIFV3 && info.width == 640 && info.height == 480 && info.profile == Nothing)
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -312,10 +312,62 @@ tests =
             (\_ ->
                 case Decode.decodeString infoJsonDecoder v2InfoJson of
                     Ok (IIIFInfo version info) ->
-                        Expect.equal True (version == IIIFV2 && info.width == 300 && info.height == 200)
+                        Expect.equal True (version == IIIFV2 && info.width == 300 && info.height == 200 && info.profile == Nothing)
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder recognizes v3 levels and official HTTP/HTTPS v2 profiles"
+            (\_ ->
+                case
+                    ( Decode.decodeString infoJsonDecoder v3InfoJsonWithProfile
+                    , Decode.decodeString infoJsonDecoder v2InfoJsonWithProfile
+                    , Decode.decodeString infoJsonDecoder (httpsIiifContexts v2InfoJsonWithProfile)
+                    )
+                of
+                    ( Ok (IIIFInfo _ v3Info), Ok (IIIFInfo _ v2HttpInfo), Ok (IIIFInfo _ v2HttpsInfo) ) ->
+                        Expect.equal
+                            ( Just Level1, Just Level2, Just Level2 )
+                            ( Maybe.map .complianceLevel v3Info.profile
+                            , Maybe.map .complianceLevel v2HttpInfo.profile
+                            , Maybe.map .complianceLevel v2HttpsInfo.profile
+                            )
+
+                    ( Err err, _, _ ) ->
+                        Expect.fail (Decode.errorToString err)
+
+                    ( _, Err err, _ ) ->
+                        Expect.fail (Decode.errorToString err)
+
+                    ( _, _, Err err ) ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder preserves unknown v2 and v3 profiles"
+            (\_ ->
+                case
+                    ( Decode.decodeString infoJsonDecoder v3InfoJsonWithUnknownProfile
+                    , Decode.decodeString infoJsonDecoder v2InfoJsonWithUnknownProfile
+                    )
+                of
+                    ( Ok (IIIFInfo _ v3Info), Ok (IIIFInfo _ v2Info) ) ->
+                        Expect.equal
+                            ( Just (UnknownLevel "future"), Just (UnknownLevel "https://example.org/level1.json") )
+                            ( Maybe.map .complianceLevel v3Info.profile, Maybe.map .complianceLevel v2Info.profile )
+
+                    ( Err err, _ ) ->
+                        Expect.fail (Decode.errorToString err)
+
+                    ( _, Err err ) ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder rejects malformed present profiles and v2 details"
+            (\_ ->
+                Expect.equal True
+                    (isDecodeFailure infoJsonDecoder v3InfoJsonWithMalformedProfile
+                        && isDecodeFailure infoJsonDecoder v2InfoJsonWithMalformedProfile
+                        && isDecodeFailure infoJsonDecoder v2InfoJsonWithMalformedProfileDetails
+                        && isDecodeFailure infoJsonDecoder v2InfoJsonWithNonObjectProfileDetails
+                    )
             )
         , test "infoJsonDecoder accepts HTTPS v2 image contexts"
             (\_ ->
@@ -341,6 +393,12 @@ tests =
                                 == "https://iiif.bodleian.ox.ac.uk/iiif/image/36ebabd9-4d62-4d8e-8e7b-1afd048e872e/info.json"
                                 && (Maybe.withDefault [] info.sizes |> List.length)
                                 == 6
+                                && Maybe.map .complianceLevel info.profile
+                                == Just Level2
+                                && (info.profile |> Maybe.andThen .formats)
+                                == Just [ "jpg", "png", "webp" ]
+                                && (info.profile |> Maybe.andThen .maxWidth)
+                                == Just 4000
                             )
 
                     Err err ->
@@ -361,6 +419,8 @@ tests =
                                 == "https://iiif.bodleian.ox.ac.uk/iiif/image/f27e28db-0b08-4f16-9bdf-3565f591fb71/info.json"
                                 && (Maybe.withDefault [] info.sizes |> List.length)
                                 == 4
+                                && Maybe.map .complianceLevel info.profile
+                                == Just Level2
                             )
 
                     Err err ->
@@ -435,7 +495,7 @@ tests =
             (\_ ->
                 case Decode.decodeString manifestDecoder v3ManifestJsonMalformedService of
                     Ok (IIIFManifest _ manifest) ->
-                        case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+                        case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
                             Just image ->
                                 Expect.equal ( 1, 1 ) ( List.length image.service, List.length image.serviceObjects )
 
@@ -460,6 +520,16 @@ tests =
 httpsIiifContexts : String -> String
 httpsIiifContexts =
     String.replace "http://iiif.io/api/" "https://iiif.io/api/"
+
+
+isDecodeFailure : Decode.Decoder a -> String -> Bool
+isDecodeFailure decoder json =
+    case Decode.decodeString decoder json of
+        Ok _ ->
+            False
+
+        Err _ ->
+            True
 
 
 v3ManifestJson : String
@@ -550,6 +620,46 @@ v3InfoJson =
 v2InfoJson : String
 v2InfoJson =
     "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc/info.json\",\"width\":300,\"height\":200}"
+
+
+v3InfoJsonWithProfile : String
+v3InfoJsonWithProfile =
+    "{\"@context\":\"http://iiif.io/api/image/3/context.json\",\"id\":\"https://example.org/iiif/3/abc\",\"width\":640,\"height\":480,\"profile\":\"level1\"}"
+
+
+v2InfoJsonWithProfile : String
+v2InfoJsonWithProfile =
+    "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc\",\"width\":300,\"height\":200,\"profile\":\"http://iiif.io/api/image/2/level2.json\"}"
+
+
+v3InfoJsonWithUnknownProfile : String
+v3InfoJsonWithUnknownProfile =
+    "{\"@context\":\"http://iiif.io/api/image/3/context.json\",\"id\":\"https://example.org/iiif/3/abc\",\"width\":640,\"height\":480,\"profile\":\"future\"}"
+
+
+v2InfoJsonWithUnknownProfile : String
+v2InfoJsonWithUnknownProfile =
+    "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc\",\"width\":300,\"height\":200,\"profile\":\"https://example.org/level1.json\"}"
+
+
+v3InfoJsonWithMalformedProfile : String
+v3InfoJsonWithMalformedProfile =
+    "{\"@context\":\"http://iiif.io/api/image/3/context.json\",\"id\":\"https://example.org/iiif/3/abc\",\"width\":640,\"height\":480,\"profile\":1}"
+
+
+v2InfoJsonWithMalformedProfile : String
+v2InfoJsonWithMalformedProfile =
+    "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc\",\"width\":300,\"height\":200,\"profile\":{}}"
+
+
+v2InfoJsonWithMalformedProfileDetails : String
+v2InfoJsonWithMalformedProfileDetails =
+    "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc\",\"width\":300,\"height\":200,\"profile\":[\"http://iiif.io/api/image/2/level2.json\",{\"formats\":\"jpg\"}]}"
+
+
+v2InfoJsonWithNonObjectProfileDetails : String
+v2InfoJsonWithNonObjectProfileDetails =
+    "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc\",\"width\":300,\"height\":200,\"profile\":[\"http://iiif.io/api/image/2/level2.json\",\"invalid\"]}"
 
 
 v2RealWorldManifest : String

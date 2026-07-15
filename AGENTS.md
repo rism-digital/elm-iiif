@@ -32,6 +32,7 @@ These instructions apply to the entire repository.
 - Keep backwards compatibility for existing v2/v3 decoders unless a breaking change is explicitly requested.
 - Add or update tests for behavior changes, especially decoder edge cases.
 - Match existing module style and naming.
+- Avoid the function composition operator (`>>`); use explicit lambdas or plain function calls.
 - After making changes run `elm-format` to ensure the file conforms to the Elm coding guidelines.
 
 ## Validation

@@ -1,12 +1,12 @@
 module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, imageContextListDecoder, imageContextMixedDecoder, imageContextStringDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 
 import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri, parseImageAddress, staticImageUriFromUrl)
-import IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, WidthHeight, WidthHeightScale)
+import IIIF.ImageInfo exposing (ComplianceLevel(..), IIIFInfo(..), InfoJson, InfoProfile, WidthHeight, WidthHeightScale)
 import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, iiifV3ImageContextString)
-import IIIF.Internal.Utilities exposing (optional, required)
+import IIIF.Internal.Utilities exposing (custom, optional, required)
 import IIIF.Presentation exposing (MediaFormats, ResourceTypes, ViewingDirection, ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
 import IIIF.Version exposing (IIIFVersion(..))
-import Json.Decode exposing (Decoder, andThen, fail, int, list, map, maybe, oneOf, string, succeed)
+import Json.Decode as Decode exposing (Decoder, Value, andThen, fail, field, int, keyValuePairs, list, map, maybe, oneOf, string, succeed, value)
 import Url
 
 
@@ -97,23 +97,180 @@ widthHeightScaleDecoder =
         |> required "scaleFactors" (list int)
 
 
-iiifInfoDecoderWith : String -> Decoder InfoJson
-iiifInfoDecoderWith idFieldName =
+iiifInfoDecoderWith : String -> Decoder (Maybe InfoProfile) -> Decoder InfoJson
+iiifInfoDecoderWith idFieldName profileDecoder =
     succeed InfoJson
         |> required idFieldName (string |> andThen convertImageIdToImageUri)
         |> required "width" int
         |> required "height" int
         |> optional "sizes" (maybe (list widthHeightDecoder)) Nothing
         |> optional "tiles" (maybe (list widthHeightScaleDecoder)) Nothing
+        |> custom profileDecoder
+
+
+complianceLevelFromString : String -> ComplianceLevel
+complianceLevelFromString value =
+    case value of
+        "http://iiif.io/api/image/2/level0.json" ->
+            Level0
+
+        "http://iiif.io/api/image/2/level1.json" ->
+            Level1
+
+        "http://iiif.io/api/image/2/level2.json" ->
+            Level2
+
+        "https://iiif.io/api/image/2/level0.json" ->
+            Level0
+
+        "https://iiif.io/api/image/2/level1.json" ->
+            Level1
+
+        "https://iiif.io/api/image/2/level2.json" ->
+            Level2
+
+        "level0" ->
+            Level0
+
+        "level1" ->
+            Level1
+
+        "level2" ->
+            Level2
+
+        _ ->
+            UnknownLevel value
+
+
+emptyInfoProfile : ComplianceLevel -> InfoProfile
+emptyInfoProfile complianceLevel =
+    { complianceLevel = complianceLevel
+    , formats = Nothing
+    , qualities = Nothing
+    , supports = Nothing
+    , maxWidth = Nothing
+    , maxHeight = Nothing
+    , maxArea = Nothing
+    }
+
+
+v2InfoProfileDetailsDecoder : Decoder (InfoProfile -> InfoProfile)
+v2InfoProfileDetailsDecoder =
+    keyValuePairs value
+        |> andThen (\_ -> v2InfoProfileDetailsObjectDecoder)
+
+
+v2InfoProfileDetailsObjectDecoder : Decoder (InfoProfile -> InfoProfile)
+v2InfoProfileDetailsObjectDecoder =
+    succeed
+        (\formats qualities supports maxWidth maxHeight maxArea profile ->
+            { profile
+                | formats = formats
+                , qualities = qualities
+                , supports = supports
+                , maxWidth = maxWidth
+                , maxHeight = maxHeight
+                , maxArea = maxArea
+            }
+        )
+        |> custom (strictOptionalField "formats" (list string))
+        |> custom (strictOptionalField "qualities" (list string))
+        |> custom (strictOptionalField "supports" (list string))
+        |> custom (strictOptionalField "maxWidth" int)
+        |> custom (strictOptionalField "maxHeight" int)
+        |> custom (strictOptionalField "maxArea" int)
+
+
+v2InfoProfileDecoder : Decoder InfoProfile
+v2InfoProfileDecoder =
+    oneOf
+        [ string |> map (\value -> emptyInfoProfile (complianceLevelFromString value))
+        , list value |> andThen v2InfoProfileArrayDecoder
+        ]
+
+
+v2InfoProfileArrayDecoder : List Value -> Decoder InfoProfile
+v2InfoProfileArrayDecoder values =
+    case values of
+        [ rawLevel ] ->
+            decodeProfileValue string rawLevel
+                |> map (\level -> emptyInfoProfile (complianceLevelFromString level))
+
+        [ rawLevel, rawDetails ] ->
+            Decode.map2
+                (\level applyDetails -> applyDetails (emptyInfoProfile (complianceLevelFromString level)))
+                (decodeProfileValue string rawLevel)
+                (decodeProfileValue v2InfoProfileDetailsDecoder rawDetails)
+
+        _ ->
+            fail "Expected a v2 profile array with one or two values"
+
+
+decodeProfileValue : Decoder a -> Value -> Decoder a
+decodeProfileValue decoder rawValue =
+    case Decode.decodeValue decoder rawValue of
+        Ok decoded ->
+            succeed decoded
+
+        Err error ->
+            fail (Decode.errorToString error)
+
+
+v3InfoProfileDecoder : Decoder InfoProfile
+v3InfoProfileDecoder =
+    succeed InfoProfile
+        |> required "profile" (string |> map complianceLevelFromString)
+        |> custom (strictOptionalField "extraFormats" (list string))
+        |> custom (strictOptionalField "extraQualities" (list string))
+        |> custom (strictOptionalField "extraFeatures" (list string))
+        |> custom (strictOptionalField "maxWidth" int)
+        |> custom (strictOptionalField "maxHeight" int)
+        |> custom (strictOptionalField "maxArea" int)
+
+
+strictOptionalField : String -> Decoder a -> Decoder (Maybe a)
+strictOptionalField fieldName decoder =
+    value
+        |> andThen
+            (\object ->
+                if objectHasField fieldName object then
+                    decodeProfileValue (field fieldName decoder) object |> map Just
+
+                else
+                    succeed Nothing
+            )
+
+
+strictOptionalObject : String -> Decoder a -> Decoder (Maybe a)
+strictOptionalObject fieldName decoder =
+    value
+        |> andThen
+            (\object ->
+                if objectHasField fieldName object then
+                    decodeProfileValue decoder object |> map Just
+
+                else
+                    succeed Nothing
+            )
+
+
+objectHasField : String -> Value -> Bool
+objectHasField fieldName object =
+    case Decode.decodeValue (keyValuePairs value) object of
+        Ok fields ->
+            List.any (\( name, _ ) -> name == fieldName) fields
+
+        Err _ ->
+            False
 
 
 imageContextStringDecoder : String -> Decoder IIIFInfo
 imageContextStringDecoder contextValue =
     if contextMatches iiifV3ImageContextString contextValue then
-        map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
+        map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id" (strictOptionalObject "profile" v3InfoProfileDecoder))
 
     else if contextMatches iiifV2ImageContextString contextValue then
-        map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
+        map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id" (strictOptionalField "profile" v2InfoProfileDecoder))
 
     else
         fail ("Unknown IIIF Image Context value: " ++ contextValue)
@@ -122,10 +279,10 @@ imageContextStringDecoder contextValue =
 imageContextListDecoder : List String -> Decoder IIIFInfo
 imageContextListDecoder contextValues =
     if List.any (contextMatches iiifV3ImageContextString) contextValues then
-        map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id")
+        map (IIIFInfo IIIFV3) (iiifInfoDecoderWith "id" (strictOptionalObject "profile" v3InfoProfileDecoder))
 
     else if List.any (contextMatches iiifV2ImageContextString) contextValues then
-        map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id")
+        map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id" (strictOptionalField "profile" v2InfoProfileDecoder))
 
     else
         fail ("Context list does not contain a known IIIF context value: " ++ String.join ", " contextValues)

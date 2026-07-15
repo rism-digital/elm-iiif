@@ -30,14 +30,23 @@ jobs:
           node-version: 24
           cache: yarn
 
-      - name: Install Elm
-        run: npm install -g elm@0.19.1-6
+      - name: Install Elm tooling
+        run: npm install -g elm@0.19.1-6 elm-format@0.8.8 elm-review@2.13.5
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
       - name: Run tests
         run: yarn test
+
+      - name: Validate formatting
+        run: elm-format --validate src tests review/src
+
+      - name: Run Elm Review
+        run: elm-review
+
+      - name: Compile public documentation
+        run: elm make --docs=/tmp/docs.json
 
       - name: Detect releasable API changes
         id: diff

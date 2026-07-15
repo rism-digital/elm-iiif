@@ -1,8 +1,8 @@
-module IIIF.ImageInfo exposing (IIIFInfo(..), InfoJson, InfoProfile, WidthHeight, WidthHeightScale, toInfoJson)
+module IIIF.ImageInfo exposing (ComplianceLevel(..), IIIFInfo(..), InfoJson, InfoProfile, WidthHeight, WidthHeightScale, toInfoJson)
 
 {-| Types and helpers for IIIF Image API `info.json`.
 
-@docs IIIFInfo, InfoJson, InfoProfile, WidthHeight, WidthHeightScale, toInfoJson
+@docs ComplianceLevel, IIIFInfo, InfoJson, InfoProfile, WidthHeight, WidthHeightScale, toInfoJson
 
 -}
 
@@ -24,19 +24,29 @@ type alias InfoJson =
     , height : Int
     , sizes : Maybe (List WidthHeight)
     , tiles : Maybe (List WidthHeightScale)
-
-    --, profile : InfoProfile
+    , profile : Maybe InfoProfile
     }
 
 
-{-| Optional profile metadata from the Image API.
+{-| The declared Image API compliance level.
+-}
+type ComplianceLevel
+    = Level0
+    | Level1
+    | Level2
+    | UnknownLevel String
+
+
+{-| Profile metadata normalized across Image API v2 and v3.
 -}
 type alias InfoProfile =
-    { formats : Maybe (List String)
+    { complianceLevel : ComplianceLevel
+    , formats : Maybe (List String)
     , qualities : Maybe (List String)
     , supports : Maybe (List String)
     , maxWidth : Maybe Int
     , maxHeight : Maybe Int
+    , maxArea : Maybe Int
     }
 
 

@@ -9,7 +9,6 @@ module IIIF.Internal.Utilities exposing
     , optional
     , remove
     , required
-    , requiredAt
     )
 
 import Json.Decode as Decode exposing (Decoder)
@@ -55,11 +54,6 @@ optional field decoder fallback pipeline =
                 ]
     in
     applyDecoder fieldDecoder pipeline
-
-
-requiredAt : List String -> Decoder a -> Decoder (a -> b) -> Decoder b
-requiredAt path decoder pipeline =
-    applyDecoder (Decode.at path decoder) pipeline
 
 
 hardcoded : a -> Decoder (a -> b) -> Decoder b

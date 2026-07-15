@@ -4,10 +4,12 @@ Elm helpers, types, and decoders for working with IIIF [Presentation](https://ii
 
 ## Contents
 
- - IIIF Presentation API (v2/v3) decoders
- - IIIF Image API (v2/v3) decoders and helpers
- - Utilities for working with language maps
- - Other utilities
+- IIIF Presentation API v2/v3 decoders
+- IIIF Image API v2/v3 decoders, compliance profiles, and URL helpers
+- IIIF Authorization Flow API 2.0 service discovery and response decoders
+- Language map types and utilities
+
+See the exposed modules in the [Elm package documentation](https://package.elm-lang.org/packages/rism-digital/elm-iiif/latest/).
 
 ## Example
 

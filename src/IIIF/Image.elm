@@ -199,7 +199,7 @@ createImageAddress iiifUri =
             createImageUri params
 
         StaticImageUri params ->
-            params.host ++ params.prefix
+            joinUrlParts params.host [ params.prefix ]
 
 
 {-| Parse a IIIF Image URL string into a IIIFImageUri record.
@@ -294,20 +294,63 @@ imageServerToImageRequest { host, prefix } =
 -}
 createInfoUri : ImageServerParameters -> String
 createInfoUri params =
-    params.host ++ params.prefix ++ "/info.json"
+    joinUrlParts params.host [ params.prefix, "info.json" ]
 
 
 {-| Render a full image request URI as a URL string.
 -}
 createImageUri : ImageRequestParameters -> String
 createImageUri params =
-    String.join "/"
-        [ params.host ++ params.prefix
+    joinUrlParts params.host
+        [ params.prefix
         , createRegionComponent params.region
         , createSizeComponent params.size
         , createRotationComponent params.rotation
         , createQualityComponent params.quality ++ "." ++ createFormatComponent params.format
         ]
+
+
+joinUrlParts : String -> List String -> String
+joinUrlParts =
+    List.foldl appendUrlPart
+
+
+appendUrlPart : String -> String -> String
+appendUrlPart part url =
+    let
+        normalizedPart =
+            trimLeadingSlashes part
+    in
+    if String.isEmpty normalizedPart then
+        trimTrailingSlashes url
+
+    else
+        trimTrailingSlashes url ++ "/" ++ normalizedPart
+
+
+trimLeadingSlashes : String -> String
+trimLeadingSlashes string =
+    String.fromList (dropLeadingSlashCharacters (String.toList string))
+
+
+trimTrailingSlashes : String -> String
+trimTrailingSlashes string =
+    String.fromList
+        (List.reverse
+            (dropLeadingSlashCharacters
+                (List.reverse (String.toList string))
+            )
+        )
+
+
+dropLeadingSlashCharacters : List Char -> List Char
+dropLeadingSlashCharacters characters =
+    case characters of
+        '/' :: remaining ->
+            dropLeadingSlashCharacters remaining
+
+        _ ->
+            characters
 
 
 {-| Render the region component for an image request.

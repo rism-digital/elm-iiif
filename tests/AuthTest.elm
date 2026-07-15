@@ -1,7 +1,7 @@
 module AuthTest exposing (tests)
 
 import Expect
-import IIIF.Auth exposing (AccessProfile(..), RelatedService(..), TokenErrorProfile(..), accessTokenDecoder, activeAccessServiceDecoder, probeResultDecoder, probeServiceDecoder, tokenErrorDecoder)
+import IIIF.Auth exposing (AccessProfile(..), RelatedService(..), TokenErrorProfile(..), accessTokenDecoder, accessTokenServiceDecoder, activeAccessServiceDecoder, authServicesDecoder, logoutServiceDecoder, probeResultDecoder, probeServiceDecoder, tokenErrorDecoder)
 import IIIF.Decoders exposing (manifestDecoder)
 import IIIF.Language exposing (Language(..), LanguageValues(..))
 import IIIF.Presentation exposing (IIIFManifest(..))
@@ -12,7 +12,43 @@ import Test exposing (Test, describe, test)
 tests : Test
 tests =
     describe "IIIF.Auth"
-        [ test "manifestDecoder preserves v3 Auth 2 services on image bodies"
+        [ test "authServicesDecoder discovers nested probes"
+            (\_ ->
+                case Decode.decodeString authServicesDecoder v2NestedServiceTree of
+                    Ok discovery ->
+                        Expect.equal [ "https://auth.example.org/probe" ] (List.map .id discovery.probes)
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "authServicesDecoder discovers nested v3 service arrays"
+            (\_ ->
+                case Decode.decodeString authServicesDecoder v3NestedServiceTree of
+                    Ok discovery ->
+                        Expect.equal [ "https://auth.example.org/probe-v3" ] (List.map .id discovery.probes)
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "authServicesDecoder records unsupported Auth 1 services"
+            (\_ ->
+                case Decode.decodeString authServicesDecoder "{\"service\":{\"@id\":\"https://auth.example.org/token\",\"@type\":\"AuthTokenService1\"}}" of
+                    Ok discovery ->
+                        Expect.equal [ "AuthTokenService1" ] discovery.unsupportedServiceTypes
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "authServicesDecoder rejects malformed recognized probes"
+            (\_ ->
+                case Decode.decodeString authServicesDecoder malformedProbeService of
+                    Ok _ ->
+                        Expect.fail "Expected a malformed Auth 2 probe to fail"
+
+                    Err _ ->
+                        Expect.pass
+            )
+        , test "manifestDecoder preserves v3 Auth 2 services on image bodies"
             (\_ ->
                 expectManifestImageServiceObjects v3ManifestWithAuthService [ "AuthProbeService2" ]
             )
@@ -58,6 +94,70 @@ tests =
                 case Decode.decodeString activeAccessServiceDecoder externalAccessService of
                     Ok service ->
                         Expect.equal ( External, Nothing ) ( service.profile, service.id )
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "activeAccessServiceDecoder ignores an external profile id when supplied"
+            (\_ ->
+                case Decode.decodeString activeAccessServiceDecoder externalAccessServiceWithId of
+                    Ok service ->
+                        Expect.equal ( External, Nothing ) ( service.profile, service.id )
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "logoutServiceDecoder accepts an omitted label"
+            (\_ ->
+                case Decode.decodeString logoutServiceDecoder logoutServiceWithoutLabel of
+                    Ok service ->
+                        Expect.equal Nothing service.label
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "service decoders require HTTPS endpoint identifiers"
+            (\_ ->
+                Expect.equal True
+                    (isDecodeFailure probeServiceDecoder (String.replace "https://auth.example.org/probe" "http://auth.example.org/probe" probeService)
+                        && isDecodeFailure activeAccessServiceDecoder (String.replace "https://auth.example.org/login" "http://auth.example.org/login" activeAccessWithoutDisplayStrings)
+                        && isDecodeFailure activeAccessServiceDecoder (String.replace "https://auth.example.org/login" "http://auth.example.org/login" kioskAccessService)
+                        && isDecodeFailure accessTokenServiceDecoder "{\"id\":\"http://auth.example.org/token\",\"type\":\"AuthAccessTokenService2\"}"
+                        && isDecodeFailure logoutServiceDecoder "{\"id\":\"http://auth.example.org/logout\",\"type\":\"AuthLogoutService2\"}"
+                    )
+            )
+        , test "activeAccessServiceDecoder rejects unknown profiles"
+            (\_ ->
+                case Decode.decodeString activeAccessServiceDecoder unknownProfileAccessService of
+                    Ok _ ->
+                        Expect.fail "Expected an unknown Auth 2 profile to fail"
+
+                    Err _ ->
+                        Expect.pass
+            )
+        , test "activeAccessServiceDecoder preserves display and related-service metadata"
+            (\_ ->
+                case Decode.decodeString activeAccessServiceDecoder accessServiceWithMetadata of
+                    Ok service ->
+                        case service.services of
+                            [ RelatedTokenService token, RelatedLogoutService logout ] ->
+                                Expect.equal True
+                                    (service.heading
+                                        == Just [ LanguageValues (LanguageCode "en") [ "Institutional access" ] ]
+                                        && service.note
+                                        == Just [ LanguageValues (LanguageCode "en") [ "Use your library account" ] ]
+                                        && service.confirmLabel
+                                        == Just [ LanguageValues (LanguageCode "en") [ "Continue" ] ]
+                                        && token.errorHeading
+                                        == Just [ LanguageValues (LanguageCode "en") [ "Token unavailable" ] ]
+                                        && token.errorNote
+                                        == Just [ LanguageValues (LanguageCode "en") [ "Try again" ] ]
+                                        && logout.label
+                                        == Just [ LanguageValues (LanguageCode "en") [ "Sign out" ] ]
+                                    )
+
+                            _ ->
+                                Expect.fail "Expected token and logout service metadata"
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
@@ -142,6 +242,39 @@ tests =
                     Err decodeErr ->
                         Expect.fail (Decode.errorToString decodeErr)
             )
+        , test "descriptive notes decode without corresponding headings"
+            (\_ ->
+                case
+                    ( Decode.decodeString accessTokenServiceDecoder tokenServiceWithStandaloneErrorNote
+                    , Decode.decodeString tokenErrorDecoder tokenErrorWithStandaloneNote
+                    , Decode.decodeString probeServiceDecoder probeServiceWithStandaloneErrorNote
+                    )
+                of
+                    ( Ok service, Ok err, Ok probe ) ->
+                        Expect.equal True
+                            (service.errorHeading
+                                == Nothing
+                                && service.errorNote
+                                == Just [ LanguageValues (LanguageCode "en") [ "Try again" ] ]
+                                && err.heading
+                                == Nothing
+                                && err.note
+                                == Just [ LanguageValues (LanguageCode "en") [ "No access cookie was present" ] ]
+                                && probe.errorHeading
+                                == Nothing
+                                && probe.errorNote
+                                == Just [ LanguageValues (LanguageCode "en") [ "Sign in first" ] ]
+                            )
+
+                    ( Err decodeErr, _, _ ) ->
+                        Expect.fail (Decode.errorToString decodeErr)
+
+                    ( _, Err decodeErr, _ ) ->
+                        Expect.fail (Decode.errorToString decodeErr)
+
+                    ( _, _, Err decodeErr ) ->
+                        Expect.fail (Decode.errorToString decodeErr)
+            )
         , test "probeResultDecoder parses failure responses with display text"
             (\_ ->
                 case Decode.decodeString probeResultDecoder probeFailureResponse of
@@ -176,6 +309,22 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "probeResultDecoder permits substitutes for 403 responses"
+            (\_ ->
+                case Decode.decodeString probeResultDecoder (String.replace "\"status\":401" "\"status\":403" probeSubstituteResponse) of
+                    Ok result ->
+                        Expect.equal 1 (List.length result.substitutes)
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "probeResultDecoder rejects status-incompatible fields"
+            (\_ ->
+                Expect.equal True
+                    (isDecodeFailure probeResultDecoder (String.replace "\"status\":302" "\"status\":200" probeRedirectResponse)
+                        && isDecodeFailure probeResultDecoder (String.replace "\"status\":401" "\"status\":302" probeSubstituteResponse)
+                    )
+            )
         , test "accessTokenDecoder rejects non-positive expiry values"
             (\_ ->
                 case Decode.decodeString accessTokenDecoder tokenResponseWithZeroExpiry of
@@ -188,11 +337,21 @@ tests =
         ]
 
 
+isDecodeFailure : Decoder a -> String -> Bool
+isDecodeFailure decoder json =
+    case Decode.decodeString decoder json of
+        Ok _ ->
+            False
+
+        Err _ ->
+            True
+
+
 expectManifestImageServiceObjects : String -> List String -> Expect.Expectation
 expectManifestImageServiceObjects json expectedTypes =
     case Decode.decodeString manifestDecoder json of
         Ok (IIIFManifest _ manifest) ->
-            case List.head manifest.canvases |> Maybe.andThen (.images >> List.head) of
+            case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
                 Just image ->
                     case image.serviceObjects of
                         [] ->
@@ -246,6 +405,31 @@ externalAccessService =
     """{"type":"AuthAccessService2","profile":"external","service":{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}}"""
 
 
+externalAccessServiceWithId : String
+externalAccessServiceWithId =
+    """{"id":"http://auth.example.org/external","type":"AuthAccessService2","profile":"external","service":{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}}"""
+
+
+unknownProfileAccessService : String
+unknownProfileAccessService =
+    """{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"clickthrough","label":{"en":["Sign in"]},"service":{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}}"""
+
+
+accessServiceWithMetadata : String
+accessServiceWithMetadata =
+    """{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"active","label":{"en":["Sign in"]},"heading":{"en":["Institutional access"]},"note":{"en":["Use your library account"]},"confirmLabel":{"en":["Continue"]},"service":[{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2","errorHeading":{"en":["Token unavailable"]},"errorNote":{"en":["Try again"]}},{"id":"https://auth.example.org/logout","type":"AuthLogoutService2","label":{"en":["Sign out"]}}]}"""
+
+
+logoutServiceWithoutLabel : String
+logoutServiceWithoutLabel =
+    """{"id":"https://auth.example.org/logout","type":"AuthLogoutService2"}"""
+
+
+tokenServiceWithStandaloneErrorNote : String
+tokenServiceWithStandaloneErrorNote =
+    """{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2","errorNote":{"en":["Try again"]}}"""
+
+
 activeAccessWithoutLabel : String
 activeAccessWithoutLabel =
     """{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"active","service":{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}}"""
@@ -261,6 +445,11 @@ probeService =
     """{"id":"https://auth.example.org/probe","type":"AuthProbeService2","service":[{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"active","label":{"en":["Sign in"]},"service":[{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}]}]}"""
 
 
+probeServiceWithStandaloneErrorNote : String
+probeServiceWithStandaloneErrorNote =
+    """{"id":"https://auth.example.org/probe","type":"AuthProbeService2","errorNote":{"en":["Sign in first"]},"service":[{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"active","label":{"en":["Sign in"]},"service":[{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}]}]}"""
+
+
 tokenResponse : String
 tokenResponse =
     """{"@context":"http://iiif.io/api/auth/2/context.json","type":"AuthAccessToken2","accessToken":"abc123","expiresIn":300,"messageId":"msg-1"}"""
@@ -274,6 +463,11 @@ tokenResponseWithZeroExpiry =
 tokenErrorResponse : String
 tokenErrorResponse =
     """{"@context":"http://iiif.io/api/auth/2/context.json","type":"AuthAccessTokenError2","profile":"missingAspect","heading":{"en":["Unauthorized"]},"note":{"en":["No access cookie was present"]},"messageId":"msg-1"}"""
+
+
+tokenErrorWithStandaloneNote : String
+tokenErrorWithStandaloneNote =
+    """{"@context":"http://iiif.io/api/auth/2/context.json","type":"AuthAccessTokenError2","profile":"missingAspect","note":{"en":["No access cookie was present"]},"messageId":"msg-1"}"""
 
 
 probeFailureResponse : String
@@ -299,3 +493,18 @@ v3ManifestWithAuthService =
 v2ManifestWithAuthService : String
 v2ManifestWithAuthService =
     """{"@context":"http://iiif.io/api/presentation/2/context.json","@id":"https://example.org/manifest","@type":"sc:Manifest","label":"Auth Manifest","sequences":[{"@id":"https://example.org/seq/1","@type":"sc:Sequence","canvases":[{"@id":"https://example.org/canvas/1","@type":"sc:Canvas","width":100,"height":200,"images":[{"@id":"https://example.org/anno/1","@type":"oa:Annotation","motivation":"sc:painting","on":"https://example.org/canvas/1","resource":{"@id":"https://example.org/image/full/full/0/default.jpg","@type":"dctypes:Image","format":"image/jpeg","service":{"@id":"https://example.org/iiif/image","@context":"http://iiif.io/api/image/2/context.json","profile":"http://iiif.io/api/image/2/level1.json","service":[{"@id":"https://auth.example.org/probe","@type":"AuthProbeService2","service":[{"@id":"https://auth.example.org/login","@type":"AuthAccessService2","profile":"active","service":[{"@id":"https://auth.example.org/token","@type":"AuthAccessTokenService2"}]}]}]}}}]}]}]}"""
+
+
+v2NestedServiceTree : String
+v2NestedServiceTree =
+    """{"@id":"https://example.org/iiif/image","profile":"http://iiif.io/api/image/2/level1.json","service":{"@id":"https://auth.example.org/probe","@type":"AuthProbeService2","service":{"@id":"https://auth.example.org/login","@type":"AuthAccessService2","profile":"active","label":{"en":["Sign in"]},"service":{"@id":"https://auth.example.org/token","@type":"AuthAccessTokenService2"}}}}"""
+
+
+v3NestedServiceTree : String
+v3NestedServiceTree =
+    """{"id":"https://example.org/iiif/image","type":"ImageService3","service":[{"id":"https://example.org/other","type":"OtherService","service":[{"id":"https://auth.example.org/probe-v3","type":"AuthProbeService2","service":[{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"active","label":{"en":["Sign in"]},"service":[{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}]}]}]}]}"""
+
+
+malformedProbeService : String
+malformedProbeService =
+    """{"service":{"id":"https://auth.example.org/probe","type":"AuthProbeService2","service":{"id":"https://auth.example.org/login","type":"AuthAccessService2","profile":"active","service":{"id":"https://auth.example.org/token","type":"AuthAccessTokenService2"}}}}"""

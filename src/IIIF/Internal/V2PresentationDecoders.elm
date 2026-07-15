@@ -3,7 +3,7 @@ module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2i
 import IIIF.Image exposing (ImageUri)
 import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString)
 import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
-import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required, requiredAt)
+import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
 import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes, ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
@@ -167,7 +167,7 @@ v2ImageIdFromServiceDecoder =
     field "service"
         (oneOf
             [ list (maybe v2ImageServiceIdDecoder)
-                |> map (List.filterMap identity >> List.head)
+                |> map (\services -> List.head (List.filterMap identity services))
             , v2ImageServiceIdDecoder |> map Just
             ]
         )
