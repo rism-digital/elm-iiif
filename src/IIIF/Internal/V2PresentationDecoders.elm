@@ -1,11 +1,11 @@
 module IIIF.Internal.V2PresentationDecoders exposing (v2ResourceTypeDecoder, v2iiifManifestDecoder)
 
 import IIIF.Image exposing (ImageUri)
-import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString)
+import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, isV1ImageContext)
 import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
-import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes, ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
+import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes(..), ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode
     exposing
@@ -203,8 +203,11 @@ v2ServiceTypeObjectDecoder =
         , field "@context" string
             |> map
                 (\context ->
-                    if contextMatches iiifV2ImageContextString context then
-                        stringToServiceType "ImageService2"
+                    if isV1ImageContext context then
+                        ImageService1
+
+                    else if contextMatches iiifV2ImageContextString context then
+                        ImageService2
 
                     else
                         stringToServiceType context
@@ -215,9 +218,9 @@ v2ServiceTypeObjectDecoder =
 isImageService : ServiceTypes -> Bool
 isImageService serviceType =
     List.member serviceType
-        [ stringToServiceType "ImageService1"
-        , stringToServiceType "ImageService2"
-        , stringToServiceType "ImageService3"
+        [ ImageService1
+        , ImageService2
+        , ImageService3
         ]
 
 

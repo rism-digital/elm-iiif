@@ -5,6 +5,9 @@ module IIIF.Version exposing (IIIFVersion(..))
 Example:
 
     case version of
+        IIIFV1 ->
+            "IIIF v1"
+
         IIIFV2 ->
             "IIIF v2"
 
@@ -19,5 +22,6 @@ Example:
 {-| IIIF API version tag.
 -}
 type IIIFVersion
-    = IIIFV2
+    = IIIFV1
+    | IIIFV2
     | IIIFV3

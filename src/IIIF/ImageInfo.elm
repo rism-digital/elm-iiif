@@ -37,7 +37,7 @@ type ComplianceLevel
     | UnknownLevel String
 
 
-{-| Profile metadata normalized across Image API v2 and v3.
+{-| Profile metadata normalized across Image API v1.1, v2, and v3.
 -}
 type alias InfoProfile =
     { complianceLevel : ComplianceLevel

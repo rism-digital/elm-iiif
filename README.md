@@ -5,7 +5,7 @@ Elm helpers, types, and decoders for working with IIIF [Presentation](https://ii
 ## Contents
 
 - IIIF Presentation API v2/v3 decoders
-- IIIF Image API v2/v3 decoders, compliance profiles, and URL helpers
+- IIIF Image API v1.1/v2/v3 decoders, compliance profiles, and URL helpers
 - IIIF Authorization Flow API 2.0 service discovery and response decoders
 - Language map types and utilities
 

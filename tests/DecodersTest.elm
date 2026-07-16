@@ -120,6 +120,36 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "manifestDecoder parses Gallica Image API 1 services"
+            (\_ ->
+                case Decode.decodeString manifestDecoder gallicaV2ManifestJson of
+                    Ok (IIIFManifest version manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
+                            Just image ->
+                                Expect.equal
+                                    ( IIIFV2, [ IIIF.Presentation.ImageService1 ], "https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/f1/info.json" )
+                                    ( version, image.service, createImageAddress image.id )
+
+                            Nothing ->
+                                Expect.fail "Expected one Gallica canvas image"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "manifestDecoder accepts HTTPS Image API 1 service contexts"
+            (\_ ->
+                case Decode.decodeString manifestDecoder (httpsLegacyContexts gallicaV2ManifestJson) of
+                    Ok (IIIFManifest _ manifest) ->
+                        case List.head manifest.canvases |> Maybe.andThen (\canvas -> List.head canvas.images) of
+                            Just image ->
+                                Expect.equal [ IIIF.Presentation.ImageService1 ] image.service
+
+                            Nothing ->
+                                Expect.fail "Expected one Gallica canvas image"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "manifestDecoder parses v2 image resource without an Image API service"
             (\_ ->
                 case Decode.decodeString manifestDecoder v2ManifestJsonPlainImage of
@@ -316,6 +346,66 @@ tests =
 
                     Err err ->
                         Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder parses Gallica Image API 1.1 info"
+            (\_ ->
+                case Decode.decodeString infoJsonDecoder gallicaV1InfoJson of
+                    Ok (IIIFInfo version info) ->
+                        Expect.equal
+                            { height = 4072
+                            , id = "https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/f1/info.json"
+                            , level = Just Level2
+                            , version = IIIFV1
+                            , width = 3055
+                            }
+                            { height = info.height
+                            , id = createImageAddress info.id
+                            , level = Maybe.map .complianceLevel info.profile
+                            , version = version
+                            , width = info.width
+                            }
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder accepts HTTPS Image API 1.1 contexts"
+            (\_ ->
+                case Decode.decodeString infoJsonDecoder (httpsLegacyContexts gallicaV1InfoJson) of
+                    Ok (IIIFInfo version _) ->
+                        Expect.equal IIIFV1 version
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder normalizes Image API 1.1 tile and profile metadata"
+            (\_ ->
+                case Decode.decodeString infoJsonDecoder v1InfoJsonWithTiles of
+                    Ok (IIIFInfo version info) ->
+                        Expect.equal
+                            { formats = Just [ "jpg", "png" ]
+                            , qualities = Just [ "native", "grey" ]
+                            , tiles = Just [ { width = 512, height = Just 256, scaleFactors = [ 1, 2, 4 ] } ]
+                            , version = IIIFV1
+                            }
+                            { formats = info.profile |> Maybe.andThen .formats
+                            , qualities = info.profile |> Maybe.andThen .qualities
+                            , tiles = info.tiles
+                            , version = version
+                            }
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
+        , test "infoJsonDecoder recognizes Image API 1.1 compliance levels"
+            (\_ ->
+                [ "level0", "level1", "level2" ]
+                    |> List.map
+                        (\level ->
+                            gallicaV1InfoJson
+                                |> String.replace "level2" level
+                                |> decodedComplianceLevel
+                        )
+                    |> Expect.equal [ Just Level0, Just Level1, Just Level2 ]
             )
         , test "infoJsonDecoder recognizes v3 levels and official HTTP/HTTPS v2 profiles"
             (\_ ->
@@ -522,6 +612,23 @@ httpsIiifContexts =
     String.replace "http://iiif.io/api/" "https://iiif.io/api/"
 
 
+httpsLegacyContexts : String -> String
+httpsLegacyContexts json =
+    json
+        |> String.replace "http://iiif.io/api/image/1/" "https://iiif.io/api/image/1/"
+        |> String.replace "http://library.stanford.edu/iiif/image-api/1.1/" "https://library.stanford.edu/iiif/image-api/1.1/"
+
+
+decodedComplianceLevel : String -> Maybe ComplianceLevel
+decodedComplianceLevel json =
+    case Decode.decodeString infoJsonDecoder json of
+        Ok (IIIFInfo _ info) ->
+            Maybe.map .complianceLevel info.profile
+
+        Err _ ->
+            Nothing
+
+
 isDecodeFailure : Decode.Decoder a -> String -> Bool
 isDecodeFailure decoder json =
     case Decode.decodeString decoder json of
@@ -565,6 +672,11 @@ v3ManifestJsonMalformedService =
 v2ManifestJson : String
 v2ManifestJson =
     "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://example.org/manifest\",\"label\":\"V2 Manifest\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://example.org/canvas/1\",\"width\":100,\"height\":200,\"images\":[{\"resource\":{\"service\":{\"@id\":\"https://example.org/iiif/2/abc\",\"@context\":\"http://iiif.io/api/image/2/context.json\"}}}]}]}]}"
+
+
+gallicaV2ManifestJson : String
+gallicaV2ManifestJson =
+    "{\"@context\":\"http://iiif.io/api/presentation/2/context.json\",\"@id\":\"https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/manifest.json\",\"@type\":\"sc:Manifest\",\"label\":\"BnF, département Musique, RES VM7-676\",\"sequences\":[{\"canvases\":[{\"@id\":\"https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/canvas/f1\",\"label\":\"Plat supérieur\",\"height\":4072,\"width\":3055,\"images\":[{\"motivation\":\"sc:painting\",\"resource\":{\"format\":\"image/jpeg\",\"service\":{\"profile\":\"http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level2\",\"@context\":\"http://iiif.io/api/image/1/context.json\",\"@id\":\"https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/f1\"},\"height\":4072,\"width\":3055,\"@id\":\"https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/f1/full/full/0/native.jpg\",\"@type\":\"dctypes:Image\"}}]}]}]}"
 
 
 v2ManifestJsonPlainImage : String
@@ -620,6 +732,16 @@ v3InfoJson =
 v2InfoJson : String
 v2InfoJson =
     "{\"@context\":\"http://iiif.io/api/image/2/context.json\",\"@id\":\"https://example.org/iiif/2/abc/info.json\",\"width\":300,\"height\":200}"
+
+
+gallicaV1InfoJson : String
+gallicaV1InfoJson =
+    "{\"@context\":\"http://library.stanford.edu/iiif/image-api/1.1/context.json\",\"@id\":\"https://gallica.bnf.fr/iiif/ark:/12148/btv1b550082258/f1\",\"width\":3055,\"height\":4072,\"profile\":\"http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level2\"}"
+
+
+v1InfoJsonWithTiles : String
+v1InfoJsonWithTiles =
+    "{\"@context\":\"http://library.stanford.edu/iiif/image-api/1.1/context.json\",\"@id\":\"https://example.org/iiif/1/abc\",\"width\":3000,\"height\":2000,\"scale_factors\":[1,2,4],\"tile_width\":512,\"tile_height\":256,\"formats\":[\"jpg\",\"png\"],\"qualities\":[\"native\",\"grey\"],\"profile\":\"http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level1\"}"
 
 
 v3InfoJsonWithProfile : String

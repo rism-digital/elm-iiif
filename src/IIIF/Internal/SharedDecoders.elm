@@ -2,7 +2,7 @@ module IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdTo
 
 import IIIF.Image exposing (ImageUri(..), imageUriToInfoUri, parseImageAddress, staticImageUriFromUrl)
 import IIIF.ImageInfo exposing (ComplianceLevel(..), IIIFInfo(..), InfoJson, InfoProfile, WidthHeight, WidthHeightScale)
-import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, iiifV3ImageContextString)
+import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString, iiifV3ImageContextString, isV1ImageContext)
 import IIIF.Internal.Utilities exposing (custom, optional, required)
 import IIIF.Presentation exposing (MediaFormats, ResourceTypes, ViewingDirection, ViewingLayout(..), mediaFormatFromString, resourceTypeFromString, stringToBehavior, stringToViewingDirection, stringToViewingHint)
 import IIIF.Version exposing (IIIFVersion(..))
@@ -108,6 +108,60 @@ iiifInfoDecoderWith idFieldName profileDecoder =
         |> custom profileDecoder
 
 
+v1InfoDecoder : Decoder InfoJson
+v1InfoDecoder =
+    succeed InfoJson
+        |> required "@id" (string |> andThen convertImageIdToImageUri)
+        |> required "width" int
+        |> required "height" int
+        |> custom (succeed Nothing)
+        |> custom v1TilesDecoder
+        |> custom v1InfoProfileDecoder
+
+
+v1TilesDecoder : Decoder (Maybe (List WidthHeightScale))
+v1TilesDecoder =
+    Decode.map3
+        (\maybeWidth maybeHeight maybeScaleFactors ->
+            case ( maybeWidth, maybeScaleFactors ) of
+                ( Just width, Just scaleFactors ) ->
+                    Just
+                        [ { width = width
+                          , height = maybeHeight
+                          , scaleFactors = scaleFactors
+                          }
+                        ]
+
+                _ ->
+                    Nothing
+        )
+        (strictOptionalField "tile_width" int)
+        (strictOptionalField "tile_height" int)
+        (strictOptionalField "scale_factors" (list int))
+
+
+v1InfoProfileDecoder : Decoder (Maybe InfoProfile)
+v1InfoProfileDecoder =
+    Decode.map3
+        (\maybeCompliance formats qualities ->
+            Maybe.map
+                (\complianceLevel ->
+                    { complianceLevel = complianceLevel
+                    , formats = formats
+                    , qualities = qualities
+                    , supports = Nothing
+                    , maxWidth = Nothing
+                    , maxHeight = Nothing
+                    , maxArea = Nothing
+                    }
+                )
+                maybeCompliance
+        )
+        (strictOptionalField "profile" (string |> map complianceLevelFromString))
+        (strictOptionalField "formats" (list string))
+        (strictOptionalField "qualities" (list string))
+
+
 complianceLevelFromString : String -> ComplianceLevel
 complianceLevelFromString value =
     case value of
@@ -120,6 +174,15 @@ complianceLevelFromString value =
         "http://iiif.io/api/image/2/level2.json" ->
             Level2
 
+        "http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level0" ->
+            Level0
+
+        "http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level1" ->
+            Level1
+
+        "http://library.stanford.edu/iiif/image-api/1.1/compliance.html#level2" ->
+            Level2
+
         "https://iiif.io/api/image/2/level0.json" ->
             Level0
 
@@ -127,6 +190,15 @@ complianceLevelFromString value =
             Level1
 
         "https://iiif.io/api/image/2/level2.json" ->
+            Level2
+
+        "https://library.stanford.edu/iiif/image-api/1.1/compliance.html#level0" ->
+            Level0
+
+        "https://library.stanford.edu/iiif/image-api/1.1/compliance.html#level1" ->
+            Level1
+
+        "https://library.stanford.edu/iiif/image-api/1.1/compliance.html#level2" ->
             Level2
 
         "level0" ->
@@ -272,6 +344,9 @@ imageContextStringDecoder contextValue =
     else if contextMatches iiifV2ImageContextString contextValue then
         map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id" (strictOptionalField "profile" v2InfoProfileDecoder))
 
+    else if isV1ImageContext contextValue then
+        map (IIIFInfo IIIFV1) v1InfoDecoder
+
     else
         fail ("Unknown IIIF Image Context value: " ++ contextValue)
 
@@ -283,6 +358,9 @@ imageContextListDecoder contextValues =
 
     else if List.any (contextMatches iiifV2ImageContextString) contextValues then
         map (IIIFInfo IIIFV2) (iiifInfoDecoderWith "@id" (strictOptionalField "profile" v2InfoProfileDecoder))
+
+    else if List.any isV1ImageContext contextValues then
+        map (IIIFInfo IIIFV1) v1InfoDecoder
 
     else
         fail ("Context list does not contain a known IIIF context value: " ++ String.join ", " contextValues)
