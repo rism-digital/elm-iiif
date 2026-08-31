@@ -6,6 +6,7 @@
     "version": "5.0.0",
     "exposed-modules": [
         "IIIF",
+        "IIIF.Annotation",
         "IIIF.Auth",
         "IIIF.Image",
         "IIIF.ImageInfo",

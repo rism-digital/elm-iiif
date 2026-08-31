@@ -4,7 +4,7 @@ import IIIF.Image exposing (ImageUri, imageUriToInfoUri)
 import IIIF.Internal.SharedDecoders exposing (behaviourDecoder, convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder)
 import IIIF.Internal.Utilities exposing (custom, find, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, languageMapLabelDecoder, stringToLanguageMapLabelDecoder)
-import IIIF.Presentation exposing (Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..), stringToServiceType)
+import IIIF.Presentation exposing (AnnotationSource(..), Behavior(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Logo, Manifest, MediaFormats(..), Provider, Range, RangeItem(..), ResourceTypes(..), SeeAlso, ServiceObject, ServiceTypes(..), ViewingDirection(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode exposing (Decoder, Value, andThen, at, fail, field, index, int, lazy, list, map, map3, maybe, oneOf, string, succeed, value)
 
@@ -113,6 +113,15 @@ v3CanvasDecoder =
         |> required "items" (index 0 v3AnnotationPageDecoder)
         |> optional "thumbnail" (thumbnailDecoder v3ThumbnailImageDecoder) Nothing
         |> optional "behavior" (maybe behaviourDecoder) Nothing
+        |> optional "annotations" (list v3AnnotationSourceDecoder) []
+
+
+v3AnnotationSourceDecoder : Decoder AnnotationSource
+v3AnnotationSourceDecoder =
+    oneOf
+        [ field "items" value |> map InlineAnnotationPage
+        , field "id" string |> map AnnotationSourceUrl
+        ]
 
 
 v3AnnotationPageDecoder : Decoder (List Image)

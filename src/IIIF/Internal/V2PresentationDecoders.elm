@@ -5,7 +5,7 @@ import IIIF.Internal.Contexts exposing (contextMatches, iiifV2ImageContextString
 import IIIF.Internal.SharedDecoders exposing (convertImageIdToImageUri, convertStaticImageIdToImageUri, convertThumbnailImageIdToImageUri, formatDecoder, resourceTypeDecoder, thumbnailDecoder, viewingDirectionDecoder, viewingHintDecoder)
 import IIIF.Internal.Utilities exposing (custom, hardcoded, optional, required)
 import IIIF.Language exposing (Language(..), LanguageMap, LanguageValues(..), labelValueDecoder, v2LabelValueDecoder, v2LanguageMapLabelDecoder)
-import IIIF.Presentation exposing (Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes(..), ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
+import IIIF.Presentation exposing (AnnotationSource(..), Canvas, Collection, CollectionItem(..), HomePage, IIIFCanvas(..), IIIFCollection(..), IIIFManifest(..), IIIFRange(..), IIIFResource(..), Image, ImageType(..), Manifest, MediaFormats(..), Range, RangeItem(..), RequiredStatement, ResourceTypes(..), ServiceTypes(..), ViewingDirection(..), ViewingHint(..), ViewingLayout(..), stringToServiceType)
 import IIIF.Version exposing (IIIFVersion(..))
 import Json.Decode
     exposing
@@ -66,6 +66,16 @@ v2CanvasDecoder =
         |> optional "images" v2AnnotationListDecoder []
         |> optional "thumbnail" (thumbnailDecoder v2ThumbnailImageDecoder) Nothing
         |> optional "viewingHint" (maybe viewingHintDecoder) Nothing
+        |> optional "otherContent" (list v2AnnotationSourceDecoder) []
+
+
+v2AnnotationSourceDecoder : Decoder AnnotationSource
+v2AnnotationSourceDecoder =
+    oneOf
+        [ field "@id" string |> map AnnotationSourceUrl
+        , field "id" string |> map AnnotationSourceUrl
+        , string |> map AnnotationSourceUrl
+        ]
 
 
 v2AnnotationListDecoder : Decoder (List Image)
