@@ -1,6 +1,6 @@
 module IIIF.Presentation exposing
     ( IIIFManifest(..), IIIFCollection(..), IIIFCanvas(..), IIIFRange(..), IIIFResource(..)
-    , Manifest, Canvas, Image, Range, RangeItem(..), Provider, AnnotationSource(..)
+    , Manifest, Canvas, Image, Range, RangeItem(..), Provider
     , ViewingDirection(..), ViewingHint(..), ViewingLayout(..), Behavior(..)
     , MediaFormats(..), ResourceTypes(..), ServiceTypes(..), ImageType(..)
     , HomePage, Logo, ServiceObject, SeeAlso, Thumbnail, Service, RequiredStatement, PaintedMedia
@@ -10,6 +10,7 @@ module IIIF.Presentation exposing
     , primaryImageUriForCanvas, isPagedLayout, canvasAspect, canvasLabel
     , stringToViewingDirection, stringToViewingHint, stringToBehavior, stringToServiceType
     , mediaFormatFromString, resourceTypeFromString
+    , AnnotationSource(..)
     )
 
 {-| IIIF Presentation API types and convenience helpers.
@@ -154,7 +155,8 @@ type alias Canvas =
 
 
 {-| Annotation content declared directly on a canvas, or a dereferenceable
-annotation page/list URI. -}
+annotation page/list URI.
+-}
 type AnnotationSource
     = AnnotationSourceUrl String
     | InlineAnnotationPage Value
