@@ -5,12 +5,12 @@ module IIIF.Presentation exposing
     , MediaFormats(..), ResourceTypes(..), ServiceTypes(..), ImageType(..)
     , HomePage, Logo, ServiceObject, SeeAlso, Thumbnail, Service, RequiredStatement, PaintedMedia
     , Collection, CollectionItem(..)
+    , AnnotationSource(..)
     , toManifest, withManifest, toLabel, toSummary, toMetadata, toHomepage, toLogo, toProvider, toRanges
     , toViewingDirection, toRequiredStatement, toCanvases, manifestViewingLayout
     , primaryImageUriForCanvas, isPagedLayout, canvasAspect, canvasLabel
     , stringToViewingDirection, stringToViewingHint, stringToBehavior, stringToServiceType
     , mediaFormatFromString, resourceTypeFromString
-    , AnnotationSource(..)
     )
 
 {-| IIIF Presentation API types and convenience helpers.
@@ -35,6 +35,11 @@ will hold a decoded identifier for the specific IIIF version.
 # Collection Structure
 
 @docs Collection, CollectionItem
+
+
+# Annotations
+
+@docs AnnotationSource
 
 
 # Helpers
