@@ -1,5 +1,5 @@
 module IIIF exposing
-    ( requestManifest, requestInfo, requestResource
+    ( requestManifest, requestInfo, requestResource, requestAnnotationPage
     , v2PresentationContext, v3PresentationContext, v2ImageContext, v3ImageContext
     )
 
@@ -17,13 +17,14 @@ internally to determine how to decode the response, but they may also be useful 
 a server uses content negotiation to switch between a v2 or v3 API response, then you can use this string as the `profile=`
 value. (See, for example: <https://iiif.io/api/image/3.0/#51-image-information-request>)
 
-@docs requestManifest, requestInfo, requestResource
+@docs requestManifest, requestInfo, requestResource, requestAnnotationPage
 @docs v2PresentationContext, v3PresentationContext, v2ImageContext, v3ImageContext
 
 -}
 
 import Http
 import IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
+import IIIF.Annotation exposing (decodePage)
 import IIIF.ImageInfo exposing (IIIFInfo)
 import IIIF.Internal.Contexts as Contexts
 import IIIF.Internal.Request exposing (request)
@@ -61,6 +62,17 @@ requestResource :
     -> Cmd msg
 requestResource responseMsg acceptHeaders url =
     request acceptHeaders (Http.expectJson responseMsg resourceDecoder) url
+
+
+{-| Request an IIIF Presentation 2 or 3 annotation page.
+-}
+requestAnnotationPage :
+    (Result Http.Error (List IIIF.Annotation.Annotation) -> msg)
+    -> List String
+    -> String
+    -> Cmd msg
+requestAnnotationPage responseMsg acceptHeaders url =
+    request acceptHeaders (Http.expectJson responseMsg decodePage) url
 
 
 {-| The IIIF v2 Presentation Context String. Useful for detecting a IIIF v2 Manifest
