@@ -58,7 +58,8 @@ jobs:
           printf '%s\n' "$diff_output"
 
           if printf '%s\n' "$diff_output" | grep -q "No API changes detected"; then
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            # `elm diff` classifies this as a PATCH release, not as no release.
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           fi
