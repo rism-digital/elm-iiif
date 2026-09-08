@@ -61,6 +61,20 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "decodes a v2 annotation with a list target and full canvas source"
+            (\_ ->
+                case Decode.decodeString decodePage v2ListTargetPage of
+                    Ok [ annotation ] ->
+                        Expect.equal
+                            ( Just "https://example.org/canvas/4", Svg "<svg><path d=\"M 0 0 L 5 5\"/></svg>" )
+                            ( annotation.target.source, annotation.target.selector )
+
+                    Ok _ ->
+                        Expect.fail "Expected one annotation"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         ]
 
 
@@ -108,5 +122,26 @@ svgChoicePage =
             }
           }
         }
+      }]
+    }"""
+
+
+v2ListTargetPage : String
+v2ListTargetPage =
+    """{
+      "resources": [{
+        "@id": "https://example.org/annotation/4",
+        "resource": { "chars": "A legacy SVG annotation" },
+        "on": [{
+          "@type": "oa:SpecificResource",
+          "full": "https://example.org/canvas/4",
+          "selector": {
+            "@type": "oa:Choice",
+            "item": {
+              "@type": "oa:SvgSelector",
+              "value": "<svg><path d=\\"M 0 0 L 5 5\\"/></svg>"
+            }
+          }
+        }]
       }]
     }"""

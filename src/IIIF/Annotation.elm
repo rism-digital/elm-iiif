@@ -97,7 +97,17 @@ idDecoder =
 annotationTargetDecoder : Decoder AnnotationTarget
 annotationTargetDecoder =
     Decode.oneOf
-        [ Decode.string |> Decode.andThen targetFromString
+        [ Decode.list (Decode.lazy (\_ -> annotationTargetDecoder))
+            |> Decode.andThen
+                (\targets ->
+                    case List.head targets of
+                        Just target ->
+                            Decode.succeed target
+
+                        Nothing ->
+                            Decode.fail "Annotation target list is empty"
+                )
+        , Decode.string |> Decode.andThen targetFromString
         , Decode.map2
             (\source selector -> { source = source, selector = selector })
             sourceDecoder
@@ -109,6 +119,7 @@ sourceDecoder : Decoder (Maybe String)
 sourceDecoder =
     Decode.oneOf
         [ Decode.field "source" (Decode.oneOf [ Decode.string, sourceObjectDecoder ]) |> Decode.map Just
+        , Decode.field "full" (Decode.oneOf [ Decode.string, sourceObjectDecoder ]) |> Decode.map Just
         , Decode.succeed Nothing
         ]
 
