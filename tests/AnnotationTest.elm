@@ -61,6 +61,20 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "prefers the SVG item over a Choice default rectangle"
+            (\_ ->
+                case Decode.decodeString decodePage choiceItemPreferredPage of
+                    Ok [ annotation ] ->
+                        Expect.equal
+                            (Svg "<svg><path d=\"M 0 0 L 5 5\"/></svg>")
+                            annotation.target.selector
+
+                    Ok _ ->
+                        Expect.fail "Expected one annotation"
+
+                    Err err ->
+                        Expect.fail (Decode.errorToString err)
+            )
         , test "decodes a v2 annotation with a list target and full canvas source"
             (\_ ->
                 case Decode.decodeString decodePage v2ListTargetPage of
@@ -117,6 +131,30 @@ svgChoicePage =
           "selector": {
             "type": "Choice",
             "default": {
+              "type": "SvgSelector",
+              "value": "<svg><path d=\\"M 0 0 L 5 5\\"/></svg>"
+            }
+          }
+        }
+      }]
+    }"""
+
+
+choiceItemPreferredPage : String
+choiceItemPreferredPage =
+    """{
+      "items": [{
+        "id": "https://example.org/annotation/5",
+        "body": "An SVG annotation",
+        "target": {
+          "source": "https://example.org/canvas/5",
+          "selector": {
+            "type": "Choice",
+            "default": {
+              "type": "FragmentSelector",
+              "value": "xywh=1,2,30,40"
+            },
+            "item": {
               "type": "SvgSelector",
               "value": "<svg><path d=\\"M 0 0 L 5 5\\"/></svg>"
             }
