@@ -148,8 +148,8 @@ selectorDecoder =
     Decode.oneOf
         [ svgSelectorDecoder
         , Decode.field "value" Decode.string |> Decode.andThen rectangleFromString
-        , Decode.field "default" (Decode.lazy (\_ -> selectorDecoder))
         , Decode.field "item" (Decode.lazy (\_ -> selectorDecoder))
+        , Decode.field "default" (Decode.lazy (\_ -> selectorDecoder))
         ]
 
 
