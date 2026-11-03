@@ -1,5 +1,5 @@
 module IIIF exposing
-    ( requestManifest, requestInfo, requestResource, requestAnnotationPage
+    ( requestManifest, requestInfo, requestResource, requestAnnotationPage, requestAnnotationPageWithBodies
     , v2PresentationContext, v3PresentationContext, v2ImageContext, v3ImageContext
     )
 
@@ -17,13 +17,13 @@ internally to determine how to decode the response, but they may also be useful 
 a server uses content negotiation to switch between a v2 or v3 API response, then you can use this string as the `profile=`
 value. (See, for example: <https://iiif.io/api/image/3.0/#51-image-information-request>)
 
-@docs requestManifest, requestInfo, requestResource, requestAnnotationPage
+@docs requestManifest, requestInfo, requestResource, requestAnnotationPage, requestAnnotationPageWithBodies
 @docs v2PresentationContext, v3PresentationContext, v2ImageContext, v3ImageContext
 
 -}
 
 import Http
-import IIIF.Annotation exposing (decodePage)
+import IIIF.Annotation exposing (decodePage, decodePageWithBodies)
 import IIIF.Decoders exposing (infoJsonDecoder, manifestDecoder, resourceDecoder)
 import IIIF.ImageInfo exposing (IIIFInfo)
 import IIIF.Internal.Contexts as Contexts
@@ -73,6 +73,18 @@ requestAnnotationPage :
     -> Cmd msg
 requestAnnotationPage responseMsg acceptHeaders url =
     request acceptHeaders (Http.expectJson responseMsg decodePage) url
+
+
+{-| Request an annotation page preserving all textual bodies and their metadata.
+The singular-body `requestAnnotationPage` API remains unchanged.
+-}
+requestAnnotationPageWithBodies :
+    (Result Http.Error (List IIIF.Annotation.AnnotationWithBodies) -> msg)
+    -> List String
+    -> String
+    -> Cmd msg
+requestAnnotationPageWithBodies responseMsg acceptHeaders url =
+    request acceptHeaders (Http.expectJson responseMsg decodePageWithBodies) url
 
 
 {-| The IIIF v2 Presentation Context String. Useful for detecting a IIIF v2 Manifest

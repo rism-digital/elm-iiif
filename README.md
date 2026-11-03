@@ -83,6 +83,17 @@ main =
         }
 ```
 
+## Annotation bodies
+
+`IIIF.Annotation.decodePageWithBodies` and `IIIF.requestAnnotationPageWithBodies`
+preserve every textual body from v2 `resource` and v3 `body` arrays, including
+format and language metadata. Each result contains the original `annotation`
+record and an ordered `bodies` list. Existing singular-body APIs remain unchanged.
+
+Body values are untrusted source content, not sanitized HTML. Render explicit
+`text/plain` bodies as text and sanitize HTML fragments independently: malformed
+markup in an earlier body must not consume later bodies.
+
 ## License
 
 MIT
