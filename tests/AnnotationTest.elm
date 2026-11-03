@@ -100,7 +100,16 @@ tests =
                             ]
                         )
             )
-        , test "preserves v2 resource arrays and body HTML verbatim" (\_ -> multiBodyPage |> "" "" resources "" |> "" "" resource "" |> Decode.decodeString decodePageWithBodies |> Result.map (\annotations -> List.concatMap .bodies annotations) |> Result.map (List.map .value) |> Expect.equal (Ok [ "first", "<p>later</p>" ]))
+        , test "preserves v2 resource arrays and body HTML verbatim"
+            (\_ ->
+                multiBodyPage
+                    |> String.replace "\"items\"" "\"resources\""
+                    |> String.replace "\"body\"" "\"resource\""
+                    |> Decode.decodeString decodePageWithBodies
+                    |> Result.map (\annotations -> List.concatMap .bodies annotations)
+                    |> Result.map (List.map .value)
+                    |> Expect.equal (Ok [ "first", "<p>later</p>" ])
+            )
         , test "keeps the existing singular decoder's record and first-body behavior"
             (\_ ->
                 Decode.decodeString decodePage
