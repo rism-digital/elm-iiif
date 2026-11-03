@@ -1,6 +1,6 @@
 module IIIF.Annotation exposing
-    ( AnnotationSelector(..), AnnotationTarget, AnnotationBody, Annotation
-    , decodePage
+    ( AnnotationSelector(..), AnnotationTarget, AnnotationBody, Annotation, AnnotationWithBodies
+    , decodePage, decodePageWithBodies
     )
 
 {-| IIIF Presentation annotation types and decoders.
@@ -12,12 +12,12 @@ rectangles and SVG selectors.
 
 # Types
 
-@docs AnnotationSelector, AnnotationTarget, AnnotationBody, Annotation
+@docs AnnotationSelector, AnnotationTarget, AnnotationBody, Annotation, AnnotationWithBodies
 
 
 # Decoding
 
-@docs decodePage
+@docs decodePage, decodePageWithBodies
 
 -}
 
@@ -58,18 +58,66 @@ type alias Annotation =
     }
 
 
+{-| An annotation together with all its textual bodies, in source order.
+
+The existing `Annotation` and `AnnotationBody` records are unchanged. Use `bodies`
+to render each fragment independently, with its own format and language, rather
+than concatenating untrusted HTML fragments before parsing them.
+
+-}
+type alias AnnotationWithBodies =
+    { annotation : Annotation
+    , bodies : List AnnotationBody
+    }
+
+
 {-| Decode a IIIF AnnotationPage, or a bare list of annotations.
 
 Presentation API 3 pages use `items`; Presentation API 2 pages use
 `resources`.
 
+This compatibility decoder retains the first-body behavior. Use
+`decodePageWithBodies` when an inspector should display every textual body.
+
 -}
 decodePage : Decoder (List Annotation)
 decodePage =
+    pageDecoder annotationDecoder
+
+
+{-| Decode all textual bodies without losing later entries in v2 `resource` or
+v3 `body` arrays. Nested arrays are flattened in order; unsupported non-textual
+entries are ignored. Missing and empty bodies produce an empty list.
+-}
+decodePageWithBodies : Decoder (List AnnotationWithBodies)
+decodePageWithBodies =
+    pageDecoder
+        (Decode.map2 AnnotationWithBodies
+            annotationDecoder
+            (Decode.oneOf
+                [ Decode.field "body" bodiesDecoder
+                , Decode.field "resource" bodiesDecoder
+                , Decode.succeed []
+                ]
+            )
+        )
+
+
+pageDecoder : Decoder a -> Decoder (List a)
+pageDecoder decoder =
     Decode.oneOf
-        [ Decode.field "resources" (Decode.list annotationDecoder)
-        , Decode.field "items" (Decode.list annotationDecoder)
-        , Decode.list annotationDecoder
+        [ Decode.field "resources" (Decode.list decoder)
+        , Decode.field "items" (Decode.list decoder)
+        , Decode.list decoder
+        ]
+
+
+bodiesDecoder : Decoder (List AnnotationBody)
+bodiesDecoder =
+    Decode.oneOf
+        [ Decode.list (Decode.lazy (\_ -> bodiesDecoder)) |> Decode.map List.concat
+        , bodyValueDecoder |> Decode.map List.singleton
+        , Decode.succeed []
         ]
 
 

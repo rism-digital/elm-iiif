@@ -1,7 +1,7 @@
 module AnnotationTest exposing (tests)
 
 import Expect
-import IIIF.Annotation exposing (AnnotationSelector(..), decodePage)
+import IIIF.Annotation exposing (AnnotationSelector(..), decodePage, decodePageWithBodies)
 import Json.Decode as Decode
 import Test exposing (Test, describe, test)
 
@@ -89,7 +89,43 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
+        , test "preserves all v3 bodies and metadata, skipping unsupported entries" <|
+            \_ ->
+                Decode.decodeString decodePageWithBodies multiBodyPage
+                    |> Result.map (\annotations -> List.concatMap .bodies annotations)
+                    |> Expect.equal
+                        (Ok
+                            [ { value = "first", format = Just "text/plain", language = Just "en" }
+                            , { value = "<p>later</p>", format = Just "text/html", language = Just "ar" }
+                            ]
+                        )
+        , test "preserves v2 resource arrays and body HTML verbatim" <|
+            \_ ->
+                multiBodyPage
+                    |> String.replace "\"items\"" "\"resources\""
+                    |> String.replace "\"body\"" "\"resource\""
+                    |> Decode.decodeString decodePageWithBodies
+                    |> Result.map (\annotations -> List.concatMap .bodies annotations)
+                    |> Result.map (List.map .value)
+                    |> Expect.equal (Ok [ "first", "<p>later</p>" ])
+        , test "keeps the existing singular decoder's record and first-body behavior" <|
+            \_ ->
+                Decode.decodeString decodePage
+                    """[{"id":"legacy","target":"canvas#xywh=1,2,3,4","body":[{"value":"first"},{"value":"second"}]}]"""
+                    |> Result.map (\annotations -> List.map (\annotation -> annotation.body.value) annotations)
+                    |> Expect.equal (Ok [ "first" ])
+        , test "preserves single bodies and missing-body annotations" <|
+            \_ ->
+                Decode.decodeString decodePageWithBodies
+                    """[{"id":"a","target":"canvas#xywh=1,2,3,4","body":"single"},{"id":"b","target":"canvas#xywh=1,2,3,4"},{"id":"c","target":"canvas#xywh=1,2,3,4","body":[]}]"""
+                    |> Result.map (\annotations -> List.map (\entry -> List.map .value entry.bodies) annotations)
+                    |> Expect.equal (Ok [ [ "single" ], [], [] ])
         ]
+
+
+multiBodyPage : String
+multiBodyPage =
+    """{"items":[{"id":"multi","target":"canvas#xywh=1,2,3,4","body":[{"value":"first","format":"text/plain","language":"en"},null,{"id":"reference","type":"Image"},[{"chars":"<p>later</p>","format":"text/html","language":"ar"}]]}]}"""
 
 
 v3RectanglePage : String
