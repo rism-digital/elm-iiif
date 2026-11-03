@@ -89,8 +89,8 @@ tests =
                     Err err ->
                         Expect.fail (Decode.errorToString err)
             )
-        , test "preserves all v3 bodies and metadata, skipping unsupported entries" <|
-            \_ ->
+        , test "preserves all v3 bodies and metadata, skipping unsupported entries"
+            (\_ ->
                 Decode.decodeString decodePageWithBodies multiBodyPage
                     |> Result.map (\annotations -> List.concatMap .bodies annotations)
                     |> Expect.equal
@@ -99,27 +99,22 @@ tests =
                             , { value = "<p>later</p>", format = Just "text/html", language = Just "ar" }
                             ]
                         )
-        , test "preserves v2 resource arrays and body HTML verbatim" <|
-            \_ ->
-                multiBodyPage
-                    |> String.replace "\"items\"" "\"resources\""
-                    |> String.replace "\"body\"" "\"resource\""
-                    |> Decode.decodeString decodePageWithBodies
-                    |> Result.map (\annotations -> List.concatMap .bodies annotations)
-                    |> Result.map (List.map .value)
-                    |> Expect.equal (Ok [ "first", "<p>later</p>" ])
-        , test "keeps the existing singular decoder's record and first-body behavior" <|
-            \_ ->
+            )
+        , test "preserves v2 resource arrays and body HTML verbatim" (\_ -> multiBodyPage |> "" "" resources "" |> "" "" resource "" |> Decode.decodeString decodePageWithBodies |> Result.map (\annotations -> List.concatMap .bodies annotations) |> Result.map (List.map .value) |> Expect.equal (Ok [ "first", "<p>later</p>" ]))
+        , test "keeps the existing singular decoder's record and first-body behavior"
+            (\_ ->
                 Decode.decodeString decodePage
                     """[{"id":"legacy","target":"canvas#xywh=1,2,3,4","body":[{"value":"first"},{"value":"second"}]}]"""
                     |> Result.map (\annotations -> List.map (\annotation -> annotation.body.value) annotations)
                     |> Expect.equal (Ok [ "first" ])
-        , test "preserves single bodies and missing-body annotations" <|
-            \_ ->
+            )
+        , test "preserves single bodies and missing-body annotations"
+            (\_ ->
                 Decode.decodeString decodePageWithBodies
                     """[{"id":"a","target":"canvas#xywh=1,2,3,4","body":"single"},{"id":"b","target":"canvas#xywh=1,2,3,4"},{"id":"c","target":"canvas#xywh=1,2,3,4","body":[]}]"""
                     |> Result.map (\annotations -> List.map (\entry -> List.map .value entry.bodies) annotations)
                     |> Expect.equal (Ok [ [ "single" ], [], [] ])
+            )
         ]
 
 
